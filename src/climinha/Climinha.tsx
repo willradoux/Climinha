@@ -319,9 +319,6 @@ export function Climinha({
         <clipPath id={`${uid}-clip`}>
           <path ref={setBodyRef(0)} d={BODY_PATH} />
         </clipPath>
-        <filter id={`${uid}-soft`} x="-10%" y="-10%" width="120%" height="120%">
-          <feGaussianBlur stdDeviation="2.2" />
-        </filter>
       </defs>
 
       {/* halo atmosférico: separa o corpo do céu sem outline */}
@@ -357,8 +354,8 @@ export function Climinha({
               d={BODY_PATH}
               fill="none"
               stroke={`url(#${uid}-rim)`}
-              strokeWidth="5"
-              filter={`url(#${uid}-soft)`}
+              strokeWidth="3.5"
+              strokeOpacity="0.8"
             />
           </g>
 

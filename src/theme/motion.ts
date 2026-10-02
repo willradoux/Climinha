@@ -14,6 +14,8 @@ export const motionTokens = {
     fade: { duration: 0.24, ease: [0.2, 0.8, 0.2, 1] },
     menu: { type: 'spring', stiffness: 520, damping: 34, mass: 0.7 },
     sheet: { type: 'spring', stiffness: 380, damping: 40, mass: 0.9 },
+    /** card entrando na tela ao rolar */
+    reveal: { type: 'spring', stiffness: 170, damping: 26, mass: 0.9 },
     /** página entrando / voltando ao lugar depois do arraste */
     page: { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 },
   },

@@ -141,12 +141,12 @@
   width: 100%;
   aspect-ratio: 2.6 / 1;
   opacity: var(--layer-opacity);
-  filter: blur(var(--blur));
+  /* maciez só por gradiente: sem filter, a GPU compõe a camada sem redesenhar */
   background:
-    radial-gradient(30% 44% at 30% 58%, var(--cloud-color) 0 38%, transparent 72%),
-    radial-gradient(26% 50% at 52% 42%, var(--cloud-color) 0 40%, transparent 74%),
-    radial-gradient(24% 38% at 72% 56%, var(--cloud-color) 0 38%, transparent 72%),
-    radial-gradient(50% 30% at 50% 74%, var(--cloud-shade) 0 30%, transparent 76%);
+    radial-gradient(34% 50% at 30% 58%, var(--cloud-color) 0%, color-mix(in srgb, var(--cloud-color) 55%, transparent) 40%, transparent 78%),
+    radial-gradient(30% 56% at 52% 42%, var(--cloud-color) 0%, color-mix(in srgb, var(--cloud-color) 55%, transparent) 42%, transparent 80%),
+    radial-gradient(28% 44% at 72% 56%, var(--cloud-color) 0%, color-mix(in srgb, var(--cloud-color) 55%, transparent) 40%, transparent 78%),
+    radial-gradient(54% 34% at 50% 74%, var(--cloud-shade) 0%, color-mix(in srgb, var(--cloud-shade) 40%, transparent) 36%, transparent 80%);
 }
 
 @keyframes cloud-drift {
@@ -170,7 +170,6 @@
   width: 200vw;
   height: 40vh;
   background: radial-gradient(50% 50% at 50% 50%, color-mix(in srgb, var(--cloud-color) 70%, transparent), transparent 70%);
-  filter: blur(18px);
   animation: fog-drift 70s ease-in-out infinite alternate;
 }
 
