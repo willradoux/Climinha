@@ -34,7 +34,7 @@ Comportamentos:
 
 - **Intro:** ele passa bem perto da tela, como uma nuvem atravessando o céu, dá uma piscadinha e encolhe até o lugar dele.
 - **Corpo fluido:** o contorno ondula o tempo todo e balança com inércia quando ele se move.
-- **Acompanha a interface:** ao rolar, ele se solta do topo e segue junto. No desktop flutua nas laterais; no celular senta em cima da barra de navegação. A velocidade do scroll inclina e estica o corpo.
+- **Acompanha a interface:** ao rolar, ele se solta do topo e pousa em cima da barra de navegação, centralizado. A velocidade do scroll inclina e estica o corpo. Ao arrastar entre cidades ele continua no centro e balança com a inércia do gesto.
 - **Sono:** à noite, um toque o acorda. Depois de 10 s sem interação ele fica com sono e as pálpebras descem devagar. Aos 20 s volta a dormir.
 
 ## Funcionalidades

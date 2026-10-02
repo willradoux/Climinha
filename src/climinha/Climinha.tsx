@@ -44,6 +44,8 @@ export interface CliminhaProps {
   moodOverride?: Mood
   /** -1…1: inércia lateral — o corpo "fica para trás" como gelatina */
   lean?: MotionValue<number>
+  /** contorno ondulando a cada quadro (desligado no close-up da intro: caro em tamanho gigante) */
+  fluid?: boolean
   onTap?: () => void
   className?: string
   style?: CSSProperties
@@ -58,6 +60,7 @@ export function Climinha({
   ambient = true,
   moodOverride,
   lean,
+  fluid = true,
   onTap,
   className,
   style,
@@ -259,7 +262,7 @@ export function Climinha({
   const eyeShift = useTransform(totalLean, eyeLeanOffset)
   const waveAmp = state.heavy ? 1.3 : 2.1
   useAnimationFrame((ms) => {
-    if (!live) return
+    if (!live || !fluid) return
     const t = ms / 1000
     // balanço lento mesmo parado: nuvem nunca fica rígida
     idleLean.set(Math.sin(t * 0.55) * 0.12)

@@ -97,7 +97,7 @@ export function Splash({ visible, characterVisible, climinha, characterRef }: Pr
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <Climinha state={climinha} moodOverride={mood} size="100%" />
+              <Climinha state={climinha} moodOverride={mood} size="100%" fluid={false} />
             </motion.div>
           </motion.div>
         </div>

@@ -343,15 +343,19 @@ export default function App() {
           </motion.button>
         )}
 
-        {!splash && (
-          <div key={place.id + (forecast ? '' : '-empty')} className="content">
+        {/* montado por trás da intro (sem custo na hora do voo); aparece quando ela sai */}
+        <motion.div
+          key={place.id + (forecast ? '' : '-empty')}
+          className="content"
+          initial={false}
+          animate={splash ? { opacity: 0, y: 28 } : { opacity: 1, y: 0 }}
+          transition={splash || reduced ? { duration: 0 } : { ...motionTokens.system.page, delay: 0.45 }}
+        >
             {forecast ? (
               <>
                 {/* na tela de cara: só o hero e os 10 dias. o resto aparece rolando */}
-                <div data-side="left">
-                  <DailyCard forecast={forecast} unit={unit} order={0} />
-                </div>
-                <div data-side="right" className="content__stack">
+                <DailyCard forecast={forecast} unit={unit} order={0} />
+                <div className="content__stack">
                   {outlook && <PrecipitationCard outlook={outlook} order={1} />}
                   <HourlyCard forecast={forecast} unit={unit} order={2} />
                 </div>
@@ -360,8 +364,7 @@ export default function App() {
             ) : noData ? null : (
               <SkeletonCards />
             )}
-          </div>
-        )}
+        </motion.div>
       </motion.main>
 
       <FloatingNav

@@ -4,8 +4,6 @@ import { useRef, type ReactNode } from 'react'
 interface Props {
   children: ReactNode
   className?: string
-  /** lado em que o Climinha acompanha esta seção (desktop) */
-  side?: 'left' | 'right'
   /** atraso relativo dentro de uma linha (0…1): itens à direita chegam um pouco depois */
   lag?: number
 }
@@ -15,7 +13,7 @@ interface Props {
  * aparecendo enquanto entra na tela — sobe, cresce e perde o desfoque.
  * Rolar de volta desfaz o movimento.
  */
-export function Reveal({ children, className, side, lag = 0 }: Props) {
+export function Reveal({ children, className, lag = 0 }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const reduced = useReducedMotion() ?? false
   const { scrollYProgress } = useScroll({
@@ -33,7 +31,6 @@ export function Reveal({ children, className, side, lag = 0 }: Props) {
     <motion.div
       ref={ref}
       className={className}
-      data-side={side}
       style={reduced ? { opacity } : { opacity, y, scale, filter }}
     >
       {children}

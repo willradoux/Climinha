@@ -32,7 +32,7 @@ export function DetailGrid({ forecast, unit, order }: Props) {
         : 'O vento faz parecer mais frio.'
 
   return (
-    <div className="details" data-side="left">
+    <div className="details">
       <Card title="Índice UV" icon="sun" order={order} reveal lag={0}>
         <p className="detail__value">{uvShown}</p>
         <p className="detail__label">{uvInfo.label}</p>
