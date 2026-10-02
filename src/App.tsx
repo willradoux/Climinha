@@ -1,0 +1,459 @@
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from 'motion/react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CliminhaPhase } from './climinha/Climinha'
+import { NEUTRAL_STATE, climinhaFor, type Mood } from './climinha/states'
+import { CitiesSheet } from './components/CitiesSheet'
+import { DetailGrid } from './components/Details'
+import { FloatingNav } from './components/FloatingNav'
+import { DailyCard, HourlyCard, PrecipitationCard } from './components/Forecasts'
+import { Hero, type HeroData } from './components/Hero'
+import { Splash, SPLASH_MIN_MS } from './components/Splash'
+import { TravelingCliminha } from './components/TravelingCliminha'
+import { FirstRunContext } from './components/firstRun'
+import { Environment } from './environment/Environment'
+import { motionTokens } from './theme/motion'
+import { applyTheme, getTheme } from './theme/weatherThemes'
+import { conditionLabel } from './weather/format'
+import { precipitationOutlook } from './weather/outlook'
+import { applySimulation, simulationFromUrl, type Simulation } from './weather/simulate'
+import { useForecasts, usePlaces, useUnit } from './weather/store'
+import type { Place } from './weather/types'
+import './app.css'
+
+const LOADING_THEME = getTheme('clear', true)
+
+export default function App() {
+  const reduced = useReducedMotion() ?? false
+  const { places: saved, addPlace, removePlace } = usePlaces()
+  const [here, setHere] = useState<Place | null>(null)
+  const places = useMemo(() => (here ? [here, ...saved] : saved), [here, saved])
+  const { entries, refresh } = useForecasts(places)
+  const [unit, setUnit] = useUnit()
+
+  const [index, setIndex] = useState(0)
+  const [direction, setDirection] = useState(0)
+  const safeIndex = Math.min(index, places.length - 1)
+  const place = places[safeIndex]
+  const entry = entries[place.id]
+
+  const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), [])
+  const [simulation, setSimulation] = useState<Simulation | null>(simulationFromUrl)
+  const forecast = useMemo(
+    () => (entry?.data && simulation ? applySimulation(entry.data, simulation) : entry?.data),
+    [entry?.data, simulation],
+  )
+
+  // --- ambiente + personagem derivados do clima ---------------------------
+  const theme = useMemo(
+    () => (forecast ? getTheme(forecast.current.kind, forecast.current.isDay) : LOADING_THEME),
+    [forecast],
+  )
+  useLayoutEffect(() => applyTheme(theme), [theme])
+
+  const climinha = useMemo(
+    () => (forecast ? climinhaFor(forecast.current.kind, forecast.current.isDay) : NEUTRAL_STATE),
+    [forecast],
+  )
+
+  // abertura em tela cheia: fica no mínimo um instante e sai quando há dados
+  // (ou depois de um limite, para não prender o usuário sem conexão)
+  const [splash, setSplash] = useState(true)
+  const [splashMinDone, setSplashMinDone] = useState(false)
+  useEffect(() => {
+    const min = window.setTimeout(() => setSplashMinDone(true), reduced ? 500 : SPLASH_MIN_MS)
+    const max = window.setTimeout(() => setSplash(false), 5200)
+    return () => {
+      window.clearTimeout(min)
+      window.clearTimeout(max)
+    }
+  }, [reduced])
+  const hasData = !!forecast || entry?.status === 'error'
+  if (splash && splashMinDone && hasData) setSplash(false)
+
+  // a intro já é o "notice-user": na Home ele chega acordado
+  const phase: CliminhaPhase = 'awake'
+
+  const [firstRun, setFirstRun] = useState(true)
+  useEffect(() => {
+    if (splash) return
+    const t = window.setTimeout(() => setFirstRun(false), 1600)
+    return () => window.clearTimeout(t)
+  }, [splash])
+
+  // reações curtas: relâmpago assusta, erro confunde
+  const [flash, setFlash] = useState<Mood | undefined>()
+  const flashTimer = useRef(0)
+  const react = useCallback((mood: Mood, ms = 700) => {
+    window.clearTimeout(flashTimer.current)
+    setFlash(mood)
+    flashTimer.current = window.setTimeout(() => setFlash(undefined), ms)
+  }, [])
+  const noData = !forecast && entry?.status === 'error'
+  const moodOverride = flash ?? (noData ? 'confused' : undefined)
+
+  const heroData: HeroData | null = forecast
+    ? {
+        temperature: forecast.current.temperature,
+        condition: conditionLabel(forecast),
+        max: forecast.daily[0]?.max ?? forecast.current.temperature,
+        min: forecast.daily[0]?.min ?? forecast.current.temperature,
+      }
+    : null
+
+  // --- navegação entre cidades --------------------------------------------
+  // páginas: a tela inteira acompanha o arraste (dedo, mouse, trackpad) e encaixa
+  // pela distância ou velocidade. Troca = página sai para um lado, a próxima entra pelo outro.
+  const swipeX = useMotionValue(0)
+  const pageOpacity = useTransform(swipeX, (v) => 1 - Math.min(0.5, Math.abs(v) / window.innerWidth))
+  const switching = useRef(false)
+  const settle = useCallback(
+    (velocity = 0) => void animate(swipeX, 0, { ...motionTokens.system.page, velocity }),
+    [swipeX],
+  )
+  const goTo = useCallback(
+    async (i: number, velocity = 0) => {
+      const next = Math.max(0, Math.min(places.length - 1, i))
+      if (next === safeIndex || switching.current) {
+        settle(velocity)
+        return
+      }
+      const dir = next > safeIndex ? 1 : -1
+      if (reduced) {
+        setDirection(dir)
+        setIndex(next)
+        window.scrollTo({ top: 0 })
+        swipeX.set(0)
+        return
+      }
+      switching.current = true
+      const w = window.innerWidth
+      await animate(swipeX, -dir * w * 0.9, { duration: 0.26, ease: [0.32, 0.72, 0, 1] })
+      window.scrollTo({ top: 0 })
+      setDirection(dir)
+      setIndex(next)
+      swipeX.jump(dir * w * 0.55)
+      await animate(swipeX, 0, motionTokens.system.page)
+      switching.current = false
+    },
+    [places.length, safeIndex, reduced, swipeX, settle],
+  )
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement
+      if (t.closest('input, [role="menu"], [role="dialog"], [data-hscroll]')) return
+      if (e.key === 'ArrowRight') goTo(safeIndex + 1)
+      if (e.key === 'ArrowLeft') goTo(safeIndex - 1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [goTo, safeIndex])
+
+  const canPrev = safeIndex > 0
+  const canNext = safeIndex < places.length - 1
+  const release = useCallback(
+    (offset: number, velocity: number) => {
+      const w = window.innerWidth
+      const dir = offset < -w * 0.2 || velocity < -450 ? 1 : offset > w * 0.2 || velocity > 450 ? -1 : 0
+      if (dir === 0 || (dir === 1 && !canNext) || (dir === -1 && !canPrev)) settle(velocity)
+      else void goTo(safeIndex + dir, velocity)
+    },
+    [canNext, canPrev, goTo, safeIndex, settle],
+  )
+
+  // arraste com dedo ou mouse: trava a direção nos primeiros pixels; vertical fica com o scroll nativo
+  const drag = useRef<{ x0: number; y0: number; lock: 'x' | 'y' | null; samples: [number, number][] } | null>(null)
+  const dragged = useRef(false)
+  const onPointerDown = (e: React.PointerEvent) => {
+    if (switching.current || e.button !== 0) return
+    if ((e.target as HTMLElement).closest('[data-hscroll], input, a')) return
+    drag.current = { x0: e.clientX, y0: e.clientY, lock: null, samples: [[e.clientX, e.timeStamp]] }
+    dragged.current = false
+  }
+  const onPointerMove = (e: React.PointerEvent) => {
+    const d = drag.current
+    if (!d) return
+    const dx = e.clientX - d.x0
+    const dy = e.clientY - d.y0
+    if (!d.lock) {
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        d.lock = 'x'
+        dragged.current = true
+        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      } else if (Math.abs(dy) > 8) {
+        drag.current = null
+        return
+      } else return
+    }
+    // pontas: resistência elástica
+    const edge = (dx > 0 && !canPrev) || (dx < 0 && !canNext)
+    swipeX.set(edge ? dx * 0.22 : dx)
+    d.samples.push([e.clientX, e.timeStamp])
+    if (d.samples.length > 6) d.samples.shift()
+  }
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = drag.current
+    drag.current = null
+    if (!d || d.lock !== 'x') return
+    const [x0, t0] = d.samples[0]
+    const dt = Math.max(1, e.timeStamp - t0)
+    release(e.clientX - d.x0, ((e.clientX - x0) / dt) * 1000)
+  }
+  // depois de arrastar, o "click" que o navegador dispara não deve acionar nada
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (dragged.current) {
+      e.stopPropagation()
+      e.preventDefault()
+      dragged.current = false
+    }
+  }
+
+  // trackpad: gesto horizontal de dois dedos
+  useEffect(() => {
+    let idle = 0
+    let lockedUntil = 0
+    const onWheel = (e: WheelEvent) => {
+      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.2) return
+      if ((e.target as HTMLElement).closest('[data-hscroll], [role="dialog"]')) return
+      e.preventDefault()
+      if (switching.current || performance.now() < lockedUntil) return
+      const w = window.innerWidth
+      let x = swipeX.get() - e.deltaX
+      // nas pontas, resistência elástica
+      if ((x > 0 && !canPrev) || (x < 0 && !canNext)) x = swipeX.get() - e.deltaX * 0.25
+      swipeX.set(Math.max(-w * 0.6, Math.min(w * 0.6, x)))
+      window.clearTimeout(idle)
+      const commit = () => {
+        const v = swipeX.get()
+        const dir = v < -w * 0.14 ? 1 : v > w * 0.14 ? -1 : 0
+        lockedUntil = performance.now() + 700 // ignora a inércia do trackpad
+        release(dir === 0 ? 0 : -dir * w, 0)
+      }
+      if (Math.abs(swipeX.get()) > w * 0.32) commit()
+      else idle = window.setTimeout(commit, 220)
+    }
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.clearTimeout(idle)
+    }
+  }, [swipeX, canPrev, canNext, release])
+
+  // --- localização ---------------------------------------------------------
+  const [locating, setLocating] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+  useEffect(() => {
+    if (!notice) return
+    const t = window.setTimeout(() => setNotice(null), 3200)
+    return () => window.clearTimeout(t)
+  }, [notice])
+
+  const locate = () => {
+    if (here) {
+      goTo(0)
+      return
+    }
+    if (!('geolocation' in navigator)) {
+      setNotice('Localização indisponível neste navegador.')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false)
+        setHere({
+          id: 'here',
+          name: 'Minha localização',
+          region: 'Agora',
+          latitude: Math.round(pos.coords.latitude * 1000) / 1000,
+          longitude: Math.round(pos.coords.longitude * 1000) / 1000,
+        })
+        setDirection(-1)
+        setIndex(0)
+      },
+      () => {
+        setLocating(false)
+        setNotice('Não consegui acessar sua localização.')
+      },
+      { timeout: 10000, maximumAge: 10 * 60 * 1000 },
+    )
+  }
+
+  const [listOpen, setListOpen] = useState(false)
+  const anchorRef = useRef<HTMLDivElement>(null)
+  const splashCharacterRef = useRef<HTMLDivElement>(null)
+  const [travelerReady, setTravelerReady] = useState(false)
+  const onTravelerReady = useCallback(() => setTravelerReady(true), [])
+  const [searchFirst, setSearchFirst] = useState(false)
+
+  const selectPlace = (p: Place) => {
+    const i = places.findIndex((x) => x.id === p.id)
+    if (i >= 0) goTo(i)
+    else {
+      // cidade recém-adicionada entra no fim da lista
+      setDirection(1)
+      setIndex(places.length)
+    }
+  }
+
+  const outlook = forecast ? precipitationOutlook(forecast) : null
+  const staleError = !!forecast && entry?.status === 'error'
+
+  return (
+    <FirstRunContext.Provider value={firstRun}>
+      <Environment theme={theme} onLightning={() => react('surprised', 650)} />
+
+      <motion.main
+        className="page"
+        style={{ x: swipeX, opacity: pageOpacity }}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onClickCapture={onClickCapture}
+      >
+        <Hero
+          place={place}
+          data={heroData}
+          unit={unit}
+          anchorRef={anchorRef}
+          revealed={!splash}
+          direction={direction}
+          error={noData}
+          onRetry={() => void refresh(place)}
+        />
+
+        {staleError && (
+          <motion.button
+            type="button"
+            className="stale-banner glass"
+            onClick={() => void refresh(place)}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={motionTokens.system.default}
+          >
+            Não consegui atualizar agora · <strong>Tentar novamente</strong>
+          </motion.button>
+        )}
+
+        {!splash && (
+          <div key={place.id + (forecast ? '' : '-empty')} className="content">
+            {forecast ? (
+              <>
+                {/* na tela de cara: só o hero e os 10 dias. o resto aparece rolando */}
+                <div data-side="left">
+                  <DailyCard forecast={forecast} unit={unit} order={0} />
+                </div>
+                <div data-side="right" className="content__stack">
+                  {outlook && <PrecipitationCard outlook={outlook} order={1} />}
+                  <HourlyCard forecast={forecast} unit={unit} order={2} />
+                </div>
+                <DetailGrid forecast={forecast} unit={unit} order={3} />
+              </>
+            ) : noData ? null : (
+              <SkeletonCards />
+            )}
+          </div>
+        )}
+      </motion.main>
+
+      <FloatingNav
+        places={places}
+        index={safeIndex}
+        onSelect={goTo}
+        onLocate={locate}
+        locating={locating}
+        onSearch={() => {
+          setSearchFirst(true)
+          setListOpen(true)
+        }}
+        onOpenList={() => {
+          setSearchFirst(false)
+          setListOpen(true)
+        }}
+        listOpen={listOpen}
+        settings={{
+          unit,
+          onUnitChange: setUnit,
+          onRefresh: () => void refresh(place),
+          debug,
+          simulation,
+          onSimulate: setSimulation,
+        }}
+      />
+
+      {!splash && (
+        <TravelingCliminha
+          anchorRef={anchorRef}
+          state={climinha}
+          phase={phase}
+          moodOverride={moodOverride}
+          layoutKey={`${place.id}-${forecast ? 1 : 0}-${noData ? 1 : 0}`}
+          onReady={onTravelerReady}
+          swipeX={swipeX}
+          fromRef={splashCharacterRef}
+        />
+      )}
+
+      <Splash visible={splash} characterVisible={splash || !travelerReady}
+        climinha={climinha}
+        characterRef={splashCharacterRef}
+      />
+
+      <AnimatePresence>
+        {notice && (
+          <motion.div
+            className="toast glass"
+            role="status"
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={motionTokens.system.default}
+          >
+            {notice}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <CitiesSheet
+        open={listOpen}
+        searchFirst={searchFirst}
+        onClose={() => setListOpen(false)}
+        places={places}
+        entries={entries}
+        unit={unit}
+        currentId={place.id}
+        onSelect={selectPlace}
+        onAdd={addPlace}
+        onRemove={(id) => {
+          if (id === 'here') setHere(null)
+          else removePlace(id)
+          setIndex(0)
+        }}
+      />
+    </FirstRunContext.Provider>
+  )
+}
+
+/** Placeholders estáticos e translúcidos com a geometria dos cards. */
+function SkeletonCards() {
+  return (
+    <div className="skeletons" aria-hidden="true">
+      <div className="card skeleton-card" style={{ height: 168 }} />
+      <div className="content__columns">
+        <div className="card skeleton-card" style={{ height: 420 }} />
+        <div className="details">
+          <div className="card skeleton-card" style={{ height: 164 }} />
+          <div className="card skeleton-card" style={{ height: 164 }} />
+        </div>
+      </div>
+    </div>
+  )
+}

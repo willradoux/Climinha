@@ -1,0 +1,513 @@
+import {
+  motion,
+  useAnimationControls,
+  useAnimationFrame,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+  type MotionValue,
+} from 'motion/react'
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
+import { motionTokens } from '../theme/motion'
+import { STATIC_BODY_PATH, eyeLeanOffset, fluidBodyPath } from './fluidBody'
+import { drowsyEyes, eyesFor, type CliminhaState, type EyeShape, type Mood } from './states'
+import './climinha.css'
+
+/**
+ * Climinha provisório em SVG + Motion.
+ * A API (state, phase, look, onTap) é a mesma que o futuro componente Rive vai expor.
+ */
+
+// Silhueta: domo central alto, lóbulos laterais baixos, base larga levemente ondulada.
+// Com movimento, o contorno é recalculado a cada quadro (fluidBody.ts).
+const BODY_PATH = STATIC_BODY_PATH
+
+const EYE_LEFT = { x: 114, y: 86 }
+const EYE_RIGHT = { x: 158, y: 86 }
+const LOOK_RANGE = { x: 8, y: 6 }
+
+export type CliminhaPhase = 'scanning' | 'awake'
+
+export interface CliminhaProps {
+  state: CliminhaState
+  /** largura CSS do personagem */
+  size?: CSSProperties['width']
+  /** scanning: olhos varrem o ambiente (carregando). awake: percebeu o usuário. */
+  phase?: CliminhaPhase
+  /** direção do olhar externa, -1…1 */
+  lookX?: MotionValue<number>
+  lookY?: MotionValue<number>
+  /** flutuação, piscadas, gotas */
+  ambient?: boolean
+  /** humor temporário sobrepondo o do clima (reações) */
+  moodOverride?: Mood
+  /** -1…1: inércia lateral — o corpo "fica para trás" como gelatina */
+  lean?: MotionValue<number>
+  onTap?: () => void
+  className?: string
+  style?: CSSProperties
+}
+
+export function Climinha({
+  state,
+  size = 120,
+  phase = 'awake',
+  lookX,
+  lookY,
+  ambient = true,
+  moodOverride,
+  lean,
+  onTap,
+  className,
+  style,
+}: CliminhaProps) {
+  const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const reduced = useReducedMotion() ?? false
+  const live = ambient && !reduced
+
+  const [reaction, setReaction] = useState<Mood | null>(null)
+
+  // dormindo: o toque acorda. 10 s sem interação → sonolento (pisca devagar);
+  // 20 s sem interação → volta a dormir.
+  const [wake, setWake] = useState<'asleep' | 'awake' | 'drowsy'>('asleep')
+  const wakeTimers = useRef<number[]>([])
+  const clearWakeTimers = () => {
+    wakeTimers.current.forEach((t) => window.clearTimeout(t))
+    wakeTimers.current = []
+  }
+  useEffect(() => clearWakeTimers, [])
+  // mudou o clima ou amanheceu: o ciclo recomeça do zero
+  const [sleepKey, setSleepKey] = useState(state.mood)
+  if (sleepKey !== state.mood) {
+    setSleepKey(state.mood)
+    setWake('asleep')
+  }
+  const sleepingMood: Mood | null =
+    state.mood !== 'sleeping' ? null : wake === 'awake' ? 'neutral' : wake === 'drowsy' ? 'sleepy' : null
+
+  const mood = reaction ?? moodOverride ?? sleepingMood ?? state.mood
+
+  // sonolento: as pálpebras descem aos poucos ao longo dos 10 s
+  const [drowse, setDrowse] = useState(0)
+  useEffect(() => {
+    if (wake !== 'drowsy') return
+    setDrowse(0.1)
+    const id = window.setInterval(() => setDrowse((d) => Math.min(0.86, d + 0.1)), 1100)
+    return () => window.clearInterval(id)
+  }, [wake])
+  const drowsy = mood === 'sleepy' && wake === 'drowsy'
+  // acabou de cair no sono: a transição para os olhos fechados também é lenta
+  const [justSlept, setJustSlept] = useState(false)
+  const [prevWake, setPrevWake] = useState(wake)
+  if (prevWake !== wake) {
+    setPrevWake(wake)
+    setJustSlept(prevWake === 'drowsy' && wake === 'asleep')
+  }
+  const [leftEye, rightEye] = drowsy ? drowsyEyes(drowse) : eyesFor(mood)
+  const slowEyes = drowsy || justSlept
+
+  // --- olhar -------------------------------------------------------------
+  const fallbackX = useMotionValue(0)
+  const fallbackY = useMotionValue(0)
+  const extX = lookX ?? fallbackX
+  const extY = lookY ?? fallbackY
+  const innerX = useMotionValue(0)
+  const innerY = useMotionValue(0)
+  const sumX = useTransform(() => clamp(innerX.get() + extX.get(), -1, 1) * LOOK_RANGE.x)
+  const sumY = useTransform(() => clamp(innerY.get() + extY.get(), -1, 1) * LOOK_RANGE.y)
+  const eyeX = useSpring(sumX, motionTokens.climinha.eyes)
+  const eyeY = useSpring(sumY, motionTokens.climinha.eyes)
+
+  // --- corpo: reações (notice, tap, mudança de clima) ---------------------
+  const body = useAnimationControls()
+  const prevPhase = useRef(phase)
+  const prevMood = useRef(state.mood)
+
+  // carregando: olhos varrem devagar de um lado para o outro
+  useEffect(() => {
+    if (phase !== 'scanning') return
+    if (reduced) {
+      innerX.set(-0.5)
+      return
+    }
+    let side = -1
+    innerX.set(side * 0.85)
+    innerY.set(0.15)
+    const id = window.setInterval(() => {
+      side *= -1
+      innerX.set(side * 0.85)
+    }, 1400)
+    return () => window.clearInterval(id)
+  }, [phase, reduced, innerX, innerY])
+
+  // scanning → awake: "notice-user" — olha para o usuário, pulinho, pisca
+  useEffect(() => {
+    const was = prevPhase.current
+    prevPhase.current = phase
+    if (phase !== 'awake') return
+    innerX.set(0)
+    innerY.set(0)
+    if (reduced || was === 'awake') return
+    void body.start({
+      y: [0, -9, 0, 0],
+      scaleX: [1, 0.95, 1.06, 1],
+      scaleY: [1, 1.07, 0.92, 1],
+      transition: { duration: 0.75, times: [0, 0.35, 0.7, 1], ease: 'easeOut' },
+    })
+    setReaction('surprised')
+    const t = window.setTimeout(() => setReaction(null), 520)
+    return () => window.clearTimeout(t)
+  }, [phase, reduced, body, innerX, innerY])
+
+  // clima mudou: reação proporcional ao peso do novo clima
+  useEffect(() => {
+    if (prevMood.current === state.mood) return
+    prevMood.current = state.mood
+    if (reduced) return
+    if (state.heavy) {
+      void body.start({
+        y: [0, 5, 0],
+        scaleX: [1, 1.07, 1],
+        scaleY: [1, 0.9, 1],
+        transition: { duration: 0.9, ease: [0.3, 0, 0.2, 1] },
+      })
+    } else {
+      void body.start({
+        y: [0, -10, 0],
+        scaleX: [1, 0.96, 1.04, 1],
+        scaleY: [1, 1.05, 0.95, 1],
+        transition: { duration: 0.7, ease: 'easeOut' },
+      })
+    }
+  }, [state.mood, state.heavy, reduced, body])
+
+  // toque: reação no lugar — nada se desloca, só o corpo amassa e volta
+  function handleTap() {
+    onTap?.()
+    if (!reduced) {
+      void body.start({
+        scaleX: [1, 1.08, 0.97, 1],
+        scaleY: [1, 0.9, 1.04, 1],
+        transition: { duration: 0.5, times: [0, 0.3, 0.65, 1], ease: 'easeOut' },
+      })
+    }
+    if (state.mood === 'sleeping') {
+      // acorda (um instante surpreso) e reinicia a contagem para voltar a dormir
+      if (wake === 'asleep') setReaction('surprised')
+      setWake('awake')
+      clearWakeTimers()
+      wakeTimers.current.push(
+        window.setTimeout(() => setWake('drowsy'), 10_000),
+        window.setTimeout(() => setWake('asleep'), 20_000),
+      )
+      window.setTimeout(() => setReaction(null), 700)
+      return
+    }
+    setReaction('happy')
+    window.setTimeout(() => setReaction(null), 1000)
+  }
+
+  // --- piscar -------------------------------------------------------------
+  const [blink, setBlink] = useState(false)
+  useEffect(() => {
+    if (!live || phase === 'scanning') return
+    let timer = 0
+    if (drowsy) {
+      // pálpebras pesadas: fecha devagar, demora a abrir
+      const heavy = () => {
+        timer = window.setTimeout(
+          () => {
+            setBlink(true)
+            window.setTimeout(() => setBlink(false), 900 + Math.random() * 600)
+            heavy()
+          },
+          1800 + Math.random() * 1400,
+        )
+      }
+      heavy()
+      return () => window.clearTimeout(timer)
+    }
+    const schedule = () => {
+      timer = window.setTimeout(
+        () => {
+          setBlink(true)
+          window.setTimeout(() => setBlink(false), 110)
+          // às vezes pisca duas vezes
+          if (Math.random() < 0.22) {
+            window.setTimeout(() => setBlink(true), 240)
+            window.setTimeout(() => setBlink(false), 350)
+          }
+          schedule()
+        },
+        2600 + Math.random() * 3600,
+      )
+    }
+    schedule()
+    return () => window.clearTimeout(timer)
+  }, [live, phase, drowsy])
+
+  // --- corpo fluido ----------------------------------------------------------
+  const bodyRefs = useRef<(SVGPathElement | null)[]>([])
+  const setBodyRef = (i: number) => (el: SVGPathElement | null) => {
+    bodyRefs.current[i] = el
+  }
+  const fallbackLean = useMotionValue(0)
+  const leanSource = lean ?? fallbackLean
+  const idleLean = useMotionValue(0)
+  const totalLean = useTransform(() => leanSource.get() + idleLean.get())
+  const eyeShift = useTransform(totalLean, eyeLeanOffset)
+  const waveAmp = state.heavy ? 1.3 : 2.1
+  useAnimationFrame((ms) => {
+    if (!live) return
+    const t = ms / 1000
+    // balanço lento mesmo parado: nuvem nunca fica rígida
+    idleLean.set(Math.sin(t * 0.55) * 0.12)
+    const d = fluidBodyPath(t, waveAmp, totalLean.get())
+    for (const el of bodyRefs.current) el?.setAttribute('d', d)
+  })
+
+  const vars = {
+    '--cl-light': state.body.light,
+    '--cl-mid': state.body.mid,
+    '--cl-shade': state.body.shade,
+    '--cl-rim': state.body.rim,
+    '--cl-halo': state.body.halo,
+    '--cl-contact': state.body.contactShadow,
+    width: size,
+    ...style,
+  } as CSSProperties
+
+  const { amplitude, period } = state.float
+  const floatTransition = { duration: period, repeat: Infinity, ease: 'easeInOut' as const }
+
+  const content = (
+    <svg viewBox="0 0 240 182" className="climinha__svg" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id={`${uid}-body`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" className="climinha__stop" style={{ stopColor: 'var(--cl-light)' }} />
+          <stop offset="0.55" className="climinha__stop" style={{ stopColor: 'var(--cl-mid)' }} />
+          <stop offset="1" className="climinha__stop" style={{ stopColor: 'var(--cl-shade)' }} />
+        </linearGradient>
+        <radialGradient id={`${uid}-warm`} cx="0.3" cy="0.22" r="0.62">
+          <stop offset="0" className="climinha__stop" style={{ stopColor: 'var(--cl-light)', stopOpacity: 0.95 }} />
+          <stop offset="1" className="climinha__stop" style={{ stopColor: 'var(--cl-light)', stopOpacity: 0 }} />
+        </radialGradient>
+        <radialGradient id={`${uid}-cool`} cx="0.8" cy="0.95" r="0.6">
+          <stop offset="0" className="climinha__stop" style={{ stopColor: 'var(--cl-shade)', stopOpacity: 0.7 }} />
+          <stop offset="1" className="climinha__stop" style={{ stopColor: 'var(--cl-shade)', stopOpacity: 0 }} />
+        </radialGradient>
+        <linearGradient id={`${uid}-rim`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" className="climinha__stop" style={{ stopColor: 'var(--cl-rim)' }} />
+          <stop offset="0.6" className="climinha__stop" style={{ stopColor: 'var(--cl-rim)', stopOpacity: 0 }} />
+        </linearGradient>
+        <radialGradient id={`${uid}-halo`} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" className="climinha__stop" style={{ stopColor: 'var(--cl-halo)' }} />
+          <stop offset="1" className="climinha__stop" style={{ stopColor: 'var(--cl-halo)', stopOpacity: 0 }} />
+        </radialGradient>
+        <radialGradient id={`${uid}-contact`} cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" className="climinha__stop" style={{ stopColor: 'var(--cl-contact)' }} />
+          <stop offset="1" className="climinha__stop" style={{ stopColor: 'var(--cl-contact)', stopOpacity: 0 }} />
+        </radialGradient>
+        <radialGradient id={`${uid}-drop`} cx="0.35" cy="0.6" r="0.7">
+          <stop offset="0" stopColor="#f2f8ff" />
+          <stop offset="1" stopColor="#8dbcf2" />
+        </radialGradient>
+        <clipPath id={`${uid}-clip`}>
+          <path ref={setBodyRef(0)} d={BODY_PATH} />
+        </clipPath>
+        <filter id={`${uid}-soft`} x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation="2.2" />
+        </filter>
+      </defs>
+
+      {/* halo atmosférico: separa o corpo do céu sem outline */}
+      <ellipse cx="120" cy="88" rx="120" ry="88" fill={`url(#${uid}-halo)`} />
+
+      {/* sombra de contato — encolhe quando ele sobe */}
+      <motion.ellipse
+        cx="120"
+        cy="166"
+        rx="84"
+        ry="8"
+        fill={`url(#${uid}-contact)`}
+        animate={live ? { scaleX: [1, 0.86, 1], opacity: [0.9, 0.6, 0.9] } : { scaleX: 1, opacity: 0.9 }}
+        transition={live ? floatTransition : undefined}
+      />
+
+      <motion.g
+        animate={live ? { y: [0, -amplitude, 0] } : { y: 0 }}
+        transition={live ? floatTransition : undefined}
+      >
+        {/* com medo: tremidinha curta de tempos em tempos */}
+        <motion.g
+          animate={live && mood === 'scared' ? { x: [0, -1.2, 1.2, -1, 1, 0] } : { x: 0 }}
+          transition={live && mood === 'scared' ? { duration: 0.45, repeat: Infinity, repeatDelay: 1.6 } : { duration: 0.2 }}
+        >
+        <motion.g animate={body} style={{ originX: '50%', originY: '100%' }}>
+          <path ref={setBodyRef(1)} d={BODY_PATH} fill={`url(#${uid}-body)`} />
+          <path ref={setBodyRef(2)} d={BODY_PATH} fill={`url(#${uid}-warm)`} />
+          <path ref={setBodyRef(3)} d={BODY_PATH} fill={`url(#${uid}-cool)`} />
+          <g clipPath={`url(#${uid}-clip)`}>
+            <path
+              ref={setBodyRef(4)}
+              d={BODY_PATH}
+              fill="none"
+              stroke={`url(#${uid}-rim)`}
+              strokeWidth="5"
+              filter={`url(#${uid}-soft)`}
+            />
+          </g>
+
+          <motion.g style={{ x: eyeShift }}>
+          <Eye cx={EYE_LEFT.x} cy={EYE_LEFT.y} shape={leftEye} side="left" blink={blink} slow={slowEyes} x={eyeX} y={eyeY} />
+          <Eye cx={EYE_RIGHT.x} cy={EYE_RIGHT.y} shape={rightEye} side="right" blink={blink} slow={slowEyes} x={eyeX} y={eyeY} />
+          </motion.g>
+        </motion.g>
+        </motion.g>
+
+        {live && state.drops > 0 && <Drops count={state.drops === 2 ? 5 : 3} fill={`url(#${uid}-drop)`} />}
+      </motion.g>
+    </svg>
+  )
+
+  const classes = ['climinha', className].filter(Boolean).join(' ')
+
+  if (onTap) {
+    return (
+      <button type="button" className={`${classes} climinha--interactive`} style={vars} onClick={handleTap} aria-label="Climinha">
+        {content}
+      </button>
+    )
+  }
+  return (
+    <div className={classes} style={vars} role="img" aria-label="Climinha">
+      {content}
+    </div>
+  )
+}
+
+interface EyeProps {
+  cx: number
+  cy: number
+  shape: EyeShape
+  side: 'left' | 'right'
+  blink: boolean
+  /** piscada lenta de sono */
+  slow?: boolean
+  x: MotionValue<number>
+  y: MotionValue<number>
+}
+
+function Eye({ cx, cy, shape, side, blink, slow, x, y }: EyeProps) {
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
+  const inward = side === 'left' ? 1 : -1
+  const half = shape.rx + 4.5
+  const yLeft = shape.lid - (inward * shape.lidTilt) / 2
+  const yRight = shape.lid + (inward * shape.lidTilt) / 2
+  const lidded = shape.lid > -shape.ry
+  const curve = shape.curve ?? 0
+  const mid = (yLeft + yRight) / 2 + curve * 2
+  const lidClip = `M ${-half - 2} ${yLeft} Q 0 ${mid} ${half + 2} ${yRight} L ${half + 2} 40 L ${-half - 2} 40 Z`
+  const lidLine = `M ${-half} ${yLeft} Q 0 ${mid} ${half} ${yRight}`
+  // sono: tudo devagar e contínuo; o resto usa a mola dos olhos
+  const t = slow ? motionTokens.climinha.drowsy : motionTokens.climinha.eyes
+
+  return (
+    <g transform={`translate(${cx} ${cy})`}>
+      <motion.g style={{ x, y }}>
+        <motion.g initial={false} animate={{ y: shape.dy }} transition={t}>
+          <clipPath id={`${id}-lid`}>
+            <motion.path initial={false} animate={{ d: lidClip }} transition={t} />
+          </clipPath>
+          <motion.g
+            initial={false}
+            animate={{ scaleY: blink && !shape.arc ? 0.1 : 1 }}
+            transition={slow ? motionTokens.climinha.drowsyBlink : motionTokens.climinha.blink}
+          >
+            <motion.ellipse
+              cx="0"
+              cy="0"
+              fill="#000000"
+              clipPath={`url(#${id}-lid)`}
+              initial={false}
+              animate={{ rx: shape.rx, ry: shape.ry, opacity: shape.arc ? 0 : 1 }}
+              transition={t}
+            />
+          </motion.g>
+          <motion.path
+            d={lidLine}
+            stroke="#000000"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            fill="none"
+            initial={false}
+            animate={{ d: lidLine, opacity: lidded && !shape.arc && !shape.noLine ? 1 : 0 }}
+            transition={t}
+          />
+          {/* feliz: ∩ */}
+          <motion.path
+            d="M -9 5 C -9 -11 9 -11 9 5"
+            stroke="#000000"
+            strokeWidth="5.5"
+            strokeLinecap="round"
+            fill="none"
+            initial={false}
+            animate={{ opacity: shape.arc && !shape.closed ? 1 : 0, scaleY: shape.arc && !shape.closed ? 1 : 0.4 }}
+            transition={t}
+          />
+          {/* dormindo: ‿ */}
+          <motion.path
+            d="M -9 -1 C -8 8 8 8 9 -1"
+            stroke="#000000"
+            strokeWidth="4.5"
+            strokeLinecap="round"
+            fill="none"
+            initial={false}
+            animate={{ opacity: shape.closed ? 1 : 0, scaleY: shape.closed ? 1 : 0.4 }}
+            transition={t}
+          />
+        </motion.g>
+      </motion.g>
+    </g>
+  )
+}
+
+const DROP_PATH = 'M 0 -6 C 2.4 -2.4 4 0 4 2.4 A 4 4 0 0 1 -4 2.4 C -4 0 -2.4 -2.4 0 -6 Z'
+const DROP_SLOTS = [
+  { x: 82, y: 140, delay: 0 },
+  { x: 168, y: 140, delay: 0.7 },
+  { x: 126, y: 144, delay: 1.3 },
+  { x: 102, y: 143, delay: 1.9 },
+  { x: 190, y: 136, delay: 2.4 },
+]
+
+/** Gotas surgindo do próprio corpo — responsabilidade do personagem, não do ambiente. */
+function Drops({ count, fill }: { count: number; fill: string }) {
+  return (
+    <g>
+      {DROP_SLOTS.slice(0, count).map((d, i) => (
+        <motion.path
+          key={i}
+          d={DROP_PATH}
+          fill={fill}
+          style={{ x: d.x, y: d.y }}
+          initial={{ opacity: 0, scale: 0.3 }}
+          animate={{ y: [d.y - 2, d.y + 4, d.y + 30], opacity: [0, 1, 0], scale: [0.3, 1, 0.85] }}
+          transition={{
+            duration: 1.3,
+            times: [0, 0.35, 1],
+            ease: 'easeIn',
+            repeat: Infinity,
+            repeatDelay: count > 3 ? 1.2 : 2.2,
+            delay: d.delay,
+          }}
+        />
+      ))}
+    </g>
+  )
+}
+
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v))
+}
