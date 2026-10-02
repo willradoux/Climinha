@@ -12,6 +12,8 @@ const PLACES_KEY = 'climinha:places'
 const CACHE_KEY = 'climinha:forecasts'
 const UNIT_KEY = 'climinha:unit'
 const STALE_MS = 10 * 60 * 1000
+/** com o app aberto, procura dados novos neste intervalo */
+const REFRESH_MS = 60 * 1000
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -96,13 +98,22 @@ export function useForecasts(places: Place[]) {
     for (const p of places) void load(p)
   }, [places, load])
 
-  // ao voltar para o app, atualiza o que estiver velho
+  // tempo real: com o app aberto, atualiza sozinho; e também ao voltar para a aba,
+  // ao focar a janela ou quando a conexão volta (load ignora o que ainda está fresco)
   useEffect(() => {
-    const onVisible = () => {
+    const refreshStale = () => {
       if (!document.hidden) for (const p of places) void load(p)
     }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
+    const id = window.setInterval(refreshStale, REFRESH_MS)
+    document.addEventListener('visibilitychange', refreshStale)
+    window.addEventListener('focus', refreshStale)
+    window.addEventListener('online', refreshStale)
+    return () => {
+      window.clearInterval(id)
+      document.removeEventListener('visibilitychange', refreshStale)
+      window.removeEventListener('focus', refreshStale)
+      window.removeEventListener('online', refreshStale)
+    }
   }, [places, load])
 
   const refresh = useCallback((place: Place) => load(place, true), [load])

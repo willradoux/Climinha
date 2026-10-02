@@ -1,7 +1,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState, type CSSProperties, type RefObject } from 'react'
 import { Climinha } from '../climinha/Climinha'
-import type { CliminhaState, Mood } from '../climinha/states'
+import { NEUTRAL_STATE, type Mood } from '../climinha/states'
 
 /**
  * Intro: o Climinha passa bem perto da tela, enorme, como uma nuvem atravessando
@@ -32,12 +32,11 @@ interface Props {
   visible: boolean
   /** o personagem da intro só sai quando o da Home já pode recebê-lo */
   characterVisible: boolean
-  climinha: CliminhaState
   /** medido pelo Climinha da Home para começar o voo daqui */
   characterRef: RefObject<HTMLDivElement | null>
 }
 
-export function Splash({ visible, characterVisible, climinha, characterRef }: Props) {
+export function Splash({ visible, characterVisible, characterRef }: Props) {
   const reduced = useReducedMotion() ?? false
 
   // olhos abertos enquanto passa → piscadinha → feliz
@@ -97,7 +96,14 @@ export function Splash({ visible, characterVisible, climinha, characterRef }: Pr
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6 }}
             >
-              <Climinha state={climinha} moodOverride={mood} size="100%" fluid={false} />
+              {/* flutuação por transform no wrapper: o SVG gigante não é repintado a cada quadro */}
+              <motion.div
+                className="splash__float"
+                animate={reduced ? undefined : { y: ['0%', '-1.6%', '0%'] }}
+                transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <Climinha state={NEUTRAL_STATE} moodOverride={mood} size="100%" ambient={false} fluid={false} />
+              </motion.div>
             </motion.div>
           </motion.div>
         </div>

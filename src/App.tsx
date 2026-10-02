@@ -6,7 +6,7 @@ import {
   useReducedMotion,
   useTransform,
 } from 'motion/react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CliminhaPhase } from './climinha/Climinha'
 import { NEUTRAL_STATE, climinhaFor, type Mood } from './climinha/states'
 import { CitiesSheet } from './components/CitiesSheet'
@@ -21,6 +21,7 @@ import { Environment } from './environment/Environment'
 import { motionTokens } from './theme/motion'
 import { applyTheme, getTheme } from './theme/weatherThemes'
 import { conditionLabel } from './weather/format'
+import { liveForecast } from './weather/live'
 import { precipitationOutlook } from './weather/outlook'
 import { applySimulation, simulationFromUrl, type Simulation } from './weather/simulate'
 import { useForecasts, usePlaces, useUnit } from './weather/store'
@@ -45,10 +46,17 @@ export default function App() {
 
   const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), [])
   const [simulation, setSimulation] = useState<Simulation | null>(simulationFromUrl)
-  const forecast = useMemo(
-    () => (entry?.data && simulation ? applySimulation(entry.data, simulation) : entry?.data),
-    [entry?.data, simulation],
-  )
+  // relógio: a cada 30 s a previsão é ajustada à hora real da cidade (dia/noite, "Agora", "Hoje")
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
+  const forecast = useMemo(() => {
+    if (!entry?.data) return undefined
+    const live = liveForecast(entry.data, now)
+    return simulation ? applySimulation(live, simulation) : live
+  }, [entry?.data, simulation, now])
 
   // --- ambiente + personagem derivados do clima ---------------------------
   const theme = useMemo(
@@ -58,7 +66,7 @@ export default function App() {
   useLayoutEffect(() => applyTheme(theme), [theme])
 
   const climinha = useMemo(
-    () => (forecast ? climinhaFor(forecast.current.kind, forecast.current.isDay) : NEUTRAL_STATE),
+    () => (forecast ? climinhaFor(forecast.current.kind, forecast.current.isDay, forecast.current.temperature) : NEUTRAL_STATE),
     [forecast],
   )
 
@@ -75,10 +83,44 @@ export default function App() {
     }
   }, [reduced])
   const hasData = !!forecast || entry?.status === 'error'
-  if (splash && splashMinDone && hasData) setSplash(false)
+  // a página com os dados é montada e assentada (layout pesado) ainda com a intro parada;
+  // o voo só começa depois, para nunca disputar o quadro com esse trabalho
+  const [dataSettled, setDataSettled] = useState(false)
+  useEffect(() => {
+    if (!hasData || dataSettled) return
+    let raf = 0
+    const t = window.setTimeout(() => {
+      // dois quadros depois do layout: a página já foi pintada
+      raf = requestAnimationFrame(() => requestAnimationFrame(() => setDataSettled(true)))
+    }, 350)
+    return () => {
+      window.clearTimeout(t)
+      cancelAnimationFrame(raf)
+    }
+  }, [hasData, dataSettled])
+  if (splash && splashMinDone && dataSettled) setSplash(false)
 
   // a intro já é o "notice-user": na Home ele chega acordado
   const phase: CliminhaPhase = 'awake'
+
+  // os cards abaixo da dobra só aparecem rolando: não precisam existir na abertura.
+  // Montá-los depois do pouso (com o navegador ocioso) tira o maior layout de cima da intro.
+  const [mountRest, setMountRest] = useState(false)
+  useEffect(() => {
+    if (mountRest || splash) return
+    const mount = () => startTransition(() => setMountRest(true))
+    const onScroll = () => mount()
+    window.addEventListener('scroll', onScroll, { once: true, passive: true })
+    let idle = 0
+    const t = window.setTimeout(() => {
+      idle = typeof requestIdleCallback === 'function' ? requestIdleCallback(mount, { timeout: 800 }) : setTimeout(mount, 0)
+    }, 1500)
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      window.clearTimeout(t)
+      if (typeof cancelIdleCallback === 'function') cancelIdleCallback(idle)
+    }
+  }, [mountRest, splash])
 
   const [firstRun, setFirstRun] = useState(true)
   useEffect(() => {
@@ -355,11 +397,15 @@ export default function App() {
               <>
                 {/* na tela de cara: só o hero e os 10 dias. o resto aparece rolando */}
                 <DailyCard forecast={forecast} unit={unit} order={0} />
-                <div className="content__stack">
-                  {outlook && <PrecipitationCard outlook={outlook} order={1} />}
-                  <HourlyCard forecast={forecast} unit={unit} order={2} />
-                </div>
-                <DetailGrid forecast={forecast} unit={unit} order={3} />
+                {mountRest && (
+                  <>
+                    <div className="content__stack">
+                      {outlook && <PrecipitationCard outlook={outlook} order={1} />}
+                      <HourlyCard forecast={forecast} unit={unit} order={2} />
+                    </div>
+                    <DetailGrid forecast={forecast} unit={unit} order={3} />
+                  </>
+                )}
               </>
             ) : noData ? null : (
               <SkeletonCards />
@@ -405,10 +451,7 @@ export default function App() {
         />
       )}
 
-      <Splash visible={splash} characterVisible={splash || !travelerReady}
-        climinha={climinha}
-        characterRef={splashCharacterRef}
-      />
+      <Splash visible={splash} characterVisible={splash || !travelerReady} characterRef={splashCharacterRef} />
 
       <AnimatePresence>
         {notice && (

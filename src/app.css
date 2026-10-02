@@ -196,9 +196,12 @@ button {
 }
 
 .hero__character {
-  width: clamp(120px, 32vw, 160px);
+  --cw: clamp(120px, 32vw, 160px);
+  width: var(--cw);
   aspect-ratio: 240 / 182;
-  margin: var(--space-5) 0 var(--space-3);
+  /* o desenho tem folga vazia em cima e embaixo (sombra e gotas): desconta para
+     o Climinha ficar perto da temperatura e da condição */
+  margin: calc(var(--cw) * 0.04) 0 calc(var(--cw) * -0.08);
 }
 
 .hero__top {
@@ -258,11 +261,13 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
-/* o grau fica pendurado para que o número fique visualmente centrado */
+/* "30°" centralizado como um bloco, no mesmo eixo da cidade; o recuo à esquerda
+   compensa opticamente o grau, que é mais leve que os números */
+.hero__temp {
+  padding-left: 0.12em;
+}
+
 .hero__temp-degree {
-  position: absolute;
-  left: 100%;
-  top: 0;
   letter-spacing: 0;
 }
 
@@ -350,6 +355,9 @@ button {
 }
 
 .card {
+  transition:
+    background-color var(--motion-weather-transition) var(--ease-weather),
+    border-color var(--motion-weather-transition) var(--ease-weather);
   min-width: 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-radius: var(--radius-card);
@@ -1180,7 +1188,7 @@ button {
   }
 
   .hero__character {
-    width: 210px;
+    --cw: 210px;
   }
 
   .content {
@@ -1249,7 +1257,6 @@ button {
     color-mix(in srgb, var(--sky-bottom) 30%, rgba(255, 255, 255, 0.85)) 45%,
     transparent 100%
   );
-  filter: blur(18px);
   will-change: transform, opacity;
 }
 
@@ -1272,6 +1279,12 @@ button {
 
 .splash__character {
   width: 100%;
+}
+
+/* o close-up é desenhado uma vez e só se move por transform (composição na GPU) */
+.splash__drift,
+.splash__float {
+  will-change: transform;
 }
 
 /* a página é arrastável para os lados (troca de cidade); o scroll vertical continua nativo */

@@ -232,6 +232,7 @@ export function TravelingCliminha({
             lookY={lookY}
             moodOverride={moodOverride}
             lean={lean}
+            perceive
             onTap={() => {}}
           />
         </motion.div>

@@ -25,14 +25,24 @@ A interface segue a disciplina visual das interfaces da Apple (hierarquia tipogr
 | Clima | Corpo | Humor |
 |---|---|---|
 | Sol / céu limpo | branco a azul vivo | feliz |
-| Nublado / neblina | cinza-azulado claro | normal |
+| Nublado | cinza | chateado |
+| Neblina | cinza-azulado claro | normal |
 | Chuva | cinza médio a grafite | chateado, com gotas saindo do corpo |
 | Tempestade | quase preto | com medo (e se assusta com os relâmpagos) |
 | Noite | branco frio | dormindo |
 
+A temperatura também mexe com ele:
+
+| Temperatura | Como ele fica |
+|---|---|
+| acima de 34° | avermelhado, cansado de calor, suando |
+| abaixo de 16° | azulado, tremendo de vez em quando |
+| abaixo de 5° | gelado, encolhido, tremendo sem parar |
+
 Comportamentos:
 
 - **Intro:** ele passa bem perto da tela, como uma nuvem atravessando o céu, dá uma piscadinha e encolhe até o lugar dele.
+- **Percebe o clima:** chega neutro, olha para o céu e só então reage — fica cinza no nublado, chateado na chuva, com frio no inverno. Ao trocar de cidade, olha de novo.
 - **Corpo fluido:** o contorno ondula o tempo todo e balança com inércia quando ele se move.
 - **Acompanha a interface:** ao rolar, ele se solta do topo e pousa em cima da barra de navegação, centralizado. A velocidade do scroll inclina e estica o corpo. Ao arrastar entre cidades ele continua no centro e balança com a inércia do gesto.
 - **Sono:** à noite, um toque o acorda. Depois de 10 s sem interação ele fica com sono e as pálpebras descem devagar. Aos 20 s volta a dormir.
@@ -46,6 +56,7 @@ Comportamentos:
 - Várias cidades: troque arrastando a tela (dedo, mouse ou trackpad), pelos pontos da barra ou pelas setas do teclado
 - Busca de cidades, localização atual, °C / °F
 - Respeita "reduzir movimento" do sistema
+- Tempo real: atualiza sozinho com o app aberto, e dia/noite, "Agora" e "Hoje" seguem o relógio da cidade
 - Funciona offline com o último dado salvo
 
 ## Stack
@@ -78,7 +89,7 @@ http://localhost:5173/?weather=storm
 http://localhost:5173/?weather=rain&night=1
 ```
 
-Valores: `sunny`, `clear`, `partly`, `cloudy`, `fog`, `rain`, `heavyRain`, `storm`. Com `?debug`, o menu de ajustes ganha um seletor de clima.
+Valores: `sunny`, `clear`, `partly`, `cloudy`, `fog`, `rain`, `heavyRain`, `storm`. Para forçar a temperatura, use `&temp=37` (calor) ou `&temp=2` (muito frio). Com `?debug`, o menu de ajustes ganha um seletor de clima.
 
 ## Deploy
 

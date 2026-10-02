@@ -14,6 +14,10 @@
 .env__sky {
   position: absolute;
   inset: 0;
+  transition:
+    --sky-top var(--motion-weather-transition) var(--ease-weather),
+    --sky-mid var(--motion-weather-transition) var(--ease-weather),
+    --sky-bottom var(--motion-weather-transition) var(--ease-weather);
   background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 52%, var(--sky-bottom) 100%);
 }
 

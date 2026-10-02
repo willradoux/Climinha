@@ -82,23 +82,9 @@
 
   --nav-height: 56px;
 
-  transition:
-    --sky-top var(--motion-weather-transition) var(--ease-weather),
-    --sky-mid var(--motion-weather-transition) var(--ease-weather),
-    --sky-bottom var(--motion-weather-transition) var(--ease-weather),
-    --fg var(--motion-weather-transition) var(--ease-weather),
-    --fg-2 var(--motion-weather-transition) var(--ease-weather),
-    --fg-3 var(--motion-weather-transition) var(--ease-weather),
-    --card-bg var(--motion-weather-transition) var(--ease-weather),
-    --card-border var(--motion-weather-transition) var(--ease-weather),
-    --separator var(--motion-weather-transition) var(--ease-weather),
-    --glass-bg var(--motion-weather-transition) var(--ease-weather),
-    --glass-border var(--motion-weather-transition) var(--ease-weather),
-    --glass-highlight var(--motion-weather-transition) var(--ease-weather),
-    --glass-shadow var(--motion-weather-transition) var(--ease-weather),
-    --accent var(--motion-weather-transition) var(--ease-weather),
-    --text-shadow var(--motion-weather-transition) var(--ease-weather),
-    --horizon-glow var(--motion-weather-transition) var(--ease-weather);
+  /* sem transição de variáveis aqui: animar custom properties herdadas na raiz
+     recalcula o estilo da página inteira a cada quadro. O céu interpola no próprio
+     elemento (.env__sky) e cada superfície anima só a sua cor de fundo. */
 }
 
 @media (min-width: 390px) {

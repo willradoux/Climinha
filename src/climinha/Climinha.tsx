@@ -11,7 +11,7 @@ import {
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { motionTokens } from '../theme/motion'
 import { STATIC_BODY_PATH, eyeLeanOffset, fluidBodyPath } from './fluidBody'
-import { drowsyEyes, eyesFor, type CliminhaState, type EyeShape, type Mood } from './states'
+import { NEUTRAL_STATE, drowsyEyes, eyesFor, type CliminhaState, type EyeShape, type Mood } from './states'
 import './climinha.css'
 
 /**
@@ -22,6 +22,9 @@ import './climinha.css'
 // Silhueta: domo central alto, lóbulos laterais baixos, base larga levemente ondulada.
 // Com movimento, o contorno é recalculado a cada quadro (fluidBody.ts).
 const BODY_PATH = STATIC_BODY_PATH
+
+/** quanto tempo ele olha para o céu antes de reagir ao clima (ms) */
+const PERCEIVE_MS = 1300
 
 const EYE_LEFT = { x: 114, y: 86 }
 const EYE_RIGHT = { x: 158, y: 86 }
@@ -46,13 +49,15 @@ export interface CliminhaProps {
   lean?: MotionValue<number>
   /** contorno ondulando a cada quadro (desligado no close-up da intro: caro em tamanho gigante) */
   fluid?: boolean
+  /** chega neutro, olha para o céu e só então reage ao clima (e de novo a cada mudança) */
+  perceive?: boolean
   onTap?: () => void
   className?: string
   style?: CSSProperties
 }
 
 export function Climinha({
-  state,
+  state: target,
   size = 120,
   phase = 'awake',
   lookX,
@@ -61,6 +66,7 @@ export function Climinha({
   moodOverride,
   lean,
   fluid = true,
+  perceive = false,
   onTap,
   className,
   style,
@@ -68,6 +74,19 @@ export function Climinha({
   const uid = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const reduced = useReducedMotion() ?? false
   const live = ambient && !reduced
+
+  // --- perceber o clima ------------------------------------------------------
+  // mostra o estado anterior (ou neutro, na chegada) enquanto olha para o céu;
+  // depois de um instante assume o clima novo — cor, humor e efeitos.
+  const keyOf = (c: CliminhaState) => `${c.mood}|${c.body.light}|${c.temp ?? ''}`
+  const [shown, setShown] = useState<CliminhaState>(() => (perceive && !reduced ? NEUTRAL_STATE : target))
+  const perceiving = perceive && !reduced && keyOf(shown) !== keyOf(target)
+  const state = perceiving ? shown : target
+  useEffect(() => {
+    if (!perceiving) return
+    const t = window.setTimeout(() => setShown(target), PERCEIVE_MS)
+    return () => window.clearTimeout(t)
+  }, [perceiving, target])
 
   const [reaction, setReaction] = useState<Mood | null>(null)
 
@@ -89,7 +108,7 @@ export function Climinha({
   const sleepingMood: Mood | null =
     state.mood !== 'sleeping' ? null : wake === 'awake' ? 'neutral' : wake === 'drowsy' ? 'sleepy' : null
 
-  const mood = reaction ?? moodOverride ?? sleepingMood ?? state.mood
+  const mood = reaction ?? moodOverride ?? (perceiving ? 'curious' : null) ?? sleepingMood ?? state.mood
 
   // sonolento: as pálpebras descem aos poucos ao longo dos 10 s
   const [drowse, setDrowse] = useState(0)
@@ -162,6 +181,24 @@ export function Climinha({
     const t = window.setTimeout(() => setReaction(null), 520)
     return () => window.clearTimeout(t)
   }, [phase, reduced, body, innerX, innerY])
+
+  // percebendo: olha para cima e corre os olhos pelo céu
+  useEffect(() => {
+    if (!perceiving) return
+    innerY.set(-0.9)
+    innerX.set(-0.45)
+    const t1 = window.setTimeout(() => innerX.set(0.45), PERCEIVE_MS * 0.4)
+    const t2 = window.setTimeout(() => {
+      innerX.set(0)
+      innerY.set(0)
+    }, PERCEIVE_MS * 0.85)
+    return () => {
+      window.clearTimeout(t1)
+      window.clearTimeout(t2)
+      innerX.set(0)
+      innerY.set(0)
+    }
+  }, [perceiving, innerX, innerY])
 
   // clima mudou: reação proporcional ao peso do novo clima
   useEffect(() => {
@@ -270,6 +307,16 @@ export function Climinha({
     for (const el of bodyRefs.current) el?.setAttribute('d', d)
   })
 
+  const shiver = !live
+    ? null
+    : mood === 'scared'
+      ? { x: [0, -1.2, 1.2, -1, 1, 0], duration: 0.45, repeatDelay: 1.6 }
+      : state.temp === 'freezing'
+        ? { x: [0, -1.5, 1.5, -1.3, 1.3, -1.1, 1.1, 0], duration: 0.5, repeatDelay: 0.12 }
+        : state.temp === 'cold'
+          ? { x: [0, -0.9, 0.9, -0.7, 0.7, 0], duration: 0.42, repeatDelay: 1.9 }
+          : null
+
   const vars = {
     '--cl-light': state.body.light,
     '--cl-mid': state.body.mid,
@@ -339,10 +386,19 @@ export function Climinha({
         animate={live ? { y: [0, -amplitude, 0] } : { y: 0 }}
         transition={live ? floatTransition : undefined}
       >
-        {/* com medo: tremidinha curta de tempos em tempos */}
+        {/* tremor: medo do raio (de tempos em tempos), frio (às vezes), muito frio (sem parar, encolhido) */}
         <motion.g
-          animate={live && mood === 'scared' ? { x: [0, -1.2, 1.2, -1, 1, 0] } : { x: 0 }}
-          transition={live && mood === 'scared' ? { duration: 0.45, repeat: Infinity, repeatDelay: 1.6 } : { duration: 0.2 }}
+          style={{ originX: '50%', originY: '100%' }}
+          animate={{
+            x: shiver ? shiver.x : 0,
+            scaleY: live && state.temp === 'freezing' ? 0.95 : 1,
+            scaleX: live && state.temp === 'freezing' ? 1.03 : 1,
+          }}
+          transition={{
+            x: shiver ? { duration: shiver.duration, repeat: Infinity, repeatDelay: shiver.repeatDelay } : { duration: 0.2 },
+            scaleY: motionTokens.climinha.soft,
+            scaleX: motionTokens.climinha.soft,
+          }}
         >
         <motion.g animate={body} style={{ originX: '50%', originY: '100%' }}>
           <path ref={setBodyRef(1)} d={BODY_PATH} fill={`url(#${uid}-body)`} />
@@ -363,6 +419,7 @@ export function Climinha({
           <Eye cx={EYE_LEFT.x} cy={EYE_LEFT.y} shape={leftEye} side="left" blink={blink} slow={slowEyes} x={eyeX} y={eyeY} />
           <Eye cx={EYE_RIGHT.x} cy={EYE_RIGHT.y} shape={rightEye} side="right" blink={blink} slow={slowEyes} x={eyeX} y={eyeY} />
           </motion.g>
+          {live && state.temp === 'hot' && <Sweat fill={`url(#${uid}-drop)`} />}
         </motion.g>
         </motion.g>
 
@@ -481,6 +538,31 @@ const DROP_SLOTS = [
   { x: 102, y: 143, delay: 1.9 },
   { x: 190, y: 136, delay: 2.4 },
 ]
+
+const SWEAT_SLOTS = [
+  { x: 60, y: 66, delay: 0.2 },
+  { x: 188, y: 70, delay: 1.1 },
+  { x: 96, y: 40, delay: 1.9 },
+]
+
+/** Suor: gotinhas escorrendo pelos lados do corpo quando faz calor. */
+function Sweat({ fill }: { fill: string }) {
+  return (
+    <g>
+      {SWEAT_SLOTS.map((d, i) => (
+        <motion.path
+          key={i}
+          d={DROP_PATH}
+          fill={fill}
+          style={{ x: d.x, y: d.y, scale: 0.8 }}
+          initial={{ opacity: 0 }}
+          animate={{ y: [d.y - 2, d.y + 3, d.y + 16], opacity: [0, 1, 0], scale: [0.4, 0.85, 0.7] }}
+          transition={{ duration: 1.6, times: [0, 0.3, 1], ease: 'easeIn', repeat: Infinity, repeatDelay: 1.4, delay: d.delay }}
+        />
+      ))}
+    </g>
+  )
+}
 
 /** Gotas surgindo do próprio corpo — responsabilidade do personagem, não do ambiente. */
 function Drops({ count, fill }: { count: number; fill: string }) {

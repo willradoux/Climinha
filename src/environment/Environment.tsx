@@ -84,7 +84,12 @@ export const Environment = memo(function Environment({ theme, onLightning }: Pro
 
   return (
     <div className="env" style={style} aria-hidden="true" data-reduced={reduced || undefined}>
-      <div className="env__sky" />
+      <div
+        className="env__sky"
+        style={
+          { '--sky-top': theme.skyTop, '--sky-mid': theme.skyMid, '--sky-bottom': theme.skyBottom } as CSSProperties
+        }
+      />
       <div className="env__horizon" />
 
       {/* sol: disco suave fora do centro, parcialmente ocluído pelas nuvens */}

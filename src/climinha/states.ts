@@ -12,6 +12,9 @@ export type Mood =
   | 'sleeping'
   | 'scared'
   | 'wink'
+  | 'hot'
+  | 'cold'
+  | 'freezing'
 
 export interface BodyColors {
   light: string
@@ -32,6 +35,18 @@ export interface CliminhaState {
   /** 0 nenhuma · 1 algumas gotas · 2 muitas */
   drops: 0 | 1 | 2
   heavy: boolean
+  /** sensação térmica: muda a cor, a expressão e os efeitos (suor, tremor) */
+  temp?: TempFeel
+}
+
+/** acima de 34° calor · abaixo de 16° frio · abaixo de 5° muito frio */
+export type TempFeel = 'hot' | 'cold' | 'freezing'
+
+export function tempFeelFor(celsius: number): TempFeel | undefined {
+  if (celsius > 34) return 'hot'
+  if (celsius < 5) return 'freezing'
+  if (celsius < 16) return 'cold'
+  return undefined
 }
 
 /**
@@ -65,10 +80,10 @@ const BODY: Record<WeatherKind | 'night', BodyColors> = {
     contactShadow: 'rgba(40, 80, 150, 0.32)',
   },
   cloudy: {
-    light: '#eef1f6',
-    mid: '#cbd3de',
-    shade: '#8e9cb0',
-    rim: 'rgba(255, 255, 255, 0.10)',
+    light: '#e4e7eb',
+    mid: '#b8bec7',
+    shade: '#7c8591',
+    rim: 'rgba(255, 255, 255, 0.16)',
     halo: 'rgba(235, 240, 248, 0.10)',
     contactShadow: 'rgba(30, 40, 60, 0.3)',
   },
@@ -122,18 +137,60 @@ const BODY: Record<WeatherKind | 'night', BodyColors> = {
  *  - raio: com medo
  *  - o resto: humor normal
  */
-function moodFor(kind: WeatherKind, isDay: boolean): Mood {
+function moodFor(kind: WeatherKind, isDay: boolean, temp?: TempFeel): Mood {
+  // prioridade: medo do raio > sono > o que a temperatura faz sentir > o clima
   if (kind === 'storm') return 'scared'
   if (!isDay) return 'sleeping'
+  if (temp === 'freezing') return 'freezing'
+  if (temp === 'hot') return 'hot'
+  if (kind === 'rain' || kind === 'heavyRain' || kind === 'cloudy') return 'bored'
+  if (temp === 'cold') return 'cold'
   if (kind === 'sunny' || kind === 'clear' || kind === 'partly') return 'happy'
-  if (kind === 'rain' || kind === 'heavyRain') return 'bored'
   return 'neutral'
 }
 
-export function climinhaFor(kind: WeatherKind, isDay: boolean): CliminhaState {
+// tons da temperatura misturados à cor do clima
+const TINT: Record<TempFeel, { light: string; mid: string; shade: string; amount: [number, number, number]; rim?: string; halo: string }> = {
+  hot: { light: '#ffe6da', mid: '#ffb9a1', shade: '#ec7f68', amount: [0.5, 0.5, 0.48], halo: 'rgba(255, 170, 130, 0.16)' },
+  cold: { light: '#eef7ff', mid: '#c4e2fb', shade: '#80b6ea', amount: [0.45, 0.42, 0.42], halo: 'rgba(170, 215, 255, 0.12)' },
+  freezing: {
+    light: '#f4fbff',
+    mid: '#d2ecff',
+    shade: '#8fc4f0',
+    amount: [0.7, 0.62, 0.6],
+    rim: 'rgba(225, 242, 255, 0.5)',
+    halo: 'rgba(200, 232, 255, 0.18)',
+  },
+}
+
+function mixHex(a: string, b: string, t: number) {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16))
+  const pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16))
+  return '#' + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, '0')).join('')
+}
+
+function tinted(body: BodyColors, temp?: TempFeel): BodyColors {
+  if (!temp) return body
+  const t = TINT[temp]
+  return {
+    ...body,
+    light: mixHex(body.light, t.light, t.amount[0]),
+    mid: mixHex(body.mid, t.mid, t.amount[1]),
+    shade: mixHex(body.shade, t.shade, t.amount[2]),
+    rim: t.rim ?? body.rim,
+    halo: t.halo,
+  }
+}
+
+export function climinhaFor(kind: WeatherKind, isDay: boolean, celsius?: number): CliminhaState {
   const nightCalm = !isDay && (kind === 'sunny' || kind === 'clear' || kind === 'partly')
-  const body = nightCalm ? BODY.night : BODY[kind]
-  const mood = moodFor(kind, isDay)
+  const temp = celsius === undefined ? undefined : tempFeelFor(celsius)
+  const body = tinted(nightCalm ? BODY.night : BODY[kind], temp)
+  const mood = moodFor(kind, isDay, temp)
+  return { ...baseFor(kind, nightCalm, mood, body), temp }
+}
+
+function baseFor(kind: WeatherKind, nightCalm: boolean, mood: Mood, body: BodyColors): CliminhaState {
 
   switch (kind) {
     case 'storm':
@@ -246,6 +303,24 @@ export function eyesFor(mood: Mood): [EyeShape, EyeShape] {
       return [
         { rx: 9, ry: 14.5, ...OPEN, lid: -10.5, lidTilt: -6, dy: -1 },
         { rx: 9, ry: 14.5, ...OPEN, lid: -10.5, lidTilt: -6, dy: -1 },
+      ]
+    case 'hot':
+      // calor: pálpebras pesadas e caídas, cansado (sem traço — não é irritação)
+      return [
+        { rx: 10, ry: 12.5, dy: 1, arc: false, lid: -4, lidTilt: -3, curve: 3.5, noLine: true },
+        { rx: 10, ry: 12.5, dy: 1, arc: false, lid: -4, lidTilt: -3, curve: 3.5, noLine: true },
+      ]
+    case 'cold':
+      // frio: olhos menores e um pouco preocupados
+      return [
+        { rx: 8.5, ry: 11.5, dy: 1, arc: false, lid: -8, lidTilt: -5, curve: 0, noLine: false },
+        { rx: 8.5, ry: 11.5, dy: 1, arc: false, lid: -8, lidTilt: -5, curve: 0, noLine: false },
+      ]
+    case 'freezing':
+      // muito frio: olhos apertados, tensos
+      return [
+        { rx: 9, ry: 11, dy: 2, arc: false, lid: 1.5, lidTilt: -6, curve: -1.5, noLine: false },
+        { rx: 9, ry: 11, dy: 2, arc: false, lid: 1.5, lidTilt: -6, curve: -1.5, noLine: false },
       ]
     case 'surprised':
       return [
