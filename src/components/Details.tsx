@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from 'motion/react'
+import type { ReactNode } from 'react'
 import { compassLabel, uvCategory } from '../weather/conditions'
 import { clockLabel, minutesOf } from '../weather/format'
 import { toUnit, type TemperatureUnit } from '../weather/store'
@@ -12,8 +13,13 @@ interface Props {
   order: number
 }
 
-/** Grid de detalhes P1: UV, sensação, vento, umidade, sol, precipitação. */
-export function DetailGrid({ forecast, unit, order }: Props) {
+export type DetailId = 'uv' | 'feels' | 'wind' | 'humidity' | 'precip' | 'sun'
+
+/**
+ * Os cards de detalhe (UV, sensação, vento, umidade, precipitação, sol) como peças soltas:
+ * no celular viram um grid que aparece rolando; no computador ficam em órbita do Climinha.
+ */
+export function detailCards({ forecast, unit, order, reveal }: Props & { reveal: boolean }): Record<DetailId, ReactNode> {
   const c = forecast.current
   const today = forecast.daily[0]
   const tomorrow = forecast.daily[1]
@@ -31,9 +37,9 @@ export function DetailGrid({ forecast, unit, order }: Props) {
         ? 'A umidade faz parecer mais quente.'
         : 'O vento faz parecer mais frio.'
 
-  return (
-    <div className="details">
-      <Card title="Índice UV" icon="sun" order={order} reveal lag={0}>
+  return {
+    uv: (
+      <Card key="uv" title="Índice UV" icon="sun" order={order} reveal={reveal} lag={0}>
         <p className="detail__value">{uvShown}</p>
         <p className="detail__label">{uvInfo.label}</p>
         <UvScale value={uv} />
@@ -41,14 +47,16 @@ export function DetailGrid({ forecast, unit, order }: Props) {
           {forecast.current.isDay ? uvInfo.advice : `Pico amanhã: ${uvPeak.label.toLowerCase()}.`}
         </p>
       </Card>
-
-      <Card title="Sensação" icon="thermometer" order={order + 1} reveal lag={0.5}>
+    ),
+    feels: (
+      <Card key="feels" title="Sensação" icon="thermometer" order={order + 1} reveal={reveal} lag={0.5}>
         <p className="detail__value">{toUnit(c.apparent, unit)}°</p>
         <p className="detail__spacer" />
         <p className="detail__note">{feelsText}</p>
       </Card>
-
-      <Card title="Vento" icon="wind" order={order + 2} className="card--wind" reveal lag={1}>
+    ),
+    wind: (
+      <Card key="wind" title="Vento" icon="wind" order={order + 2} className="card--wind" reveal={reveal} lag={1}>
         <div className="wind">
           <div className="wind__stats">
             <p className="detail__value">
@@ -61,15 +69,16 @@ export function DetailGrid({ forecast, unit, order }: Props) {
           <Compass direction={c.windDirection} />
         </div>
       </Card>
-
-
-      <Card title="Umidade" icon="drop" order={order + 3} reveal lag={0}>
+    ),
+    humidity: (
+      <Card key="humidity" title="Umidade" icon="drop" order={order + 3} reveal={reveal} lag={0}>
         <p className="detail__value">{Math.round(c.humidity)}%</p>
         <p className="detail__spacer" />
         <p className="detail__note">Ponto de orvalho de {toUnit(c.dewPoint, unit)}° agora.</p>
       </Card>
-
-      <Card title="Precipitação" icon="umbrella" order={order + 4} reveal lag={0.5}>
+    ),
+    precip: (
+      <Card key="precip" title="Precipitação" icon="umbrella" order={order + 4} reveal={reveal} lag={0.5}>
         <p className="detail__value">
           {formatMm(today?.precipSum ?? 0)}
           <span className="detail__unit">mm</span>
@@ -82,8 +91,22 @@ export function DetailGrid({ forecast, unit, order }: Props) {
             : 'Sem chuva relevante prevista amanhã.'}
         </p>
       </Card>
+    ),
+    sun: today ? <SunCard key="sun" forecast={forecast} order={order + 5} reveal={reveal} /> : null,
+  }
+}
 
-      {today && <SunCard forecast={forecast} order={order + 5} />}
+/** Celular: grid de detalhes que aparece conforme o scroll. */
+export function DetailGrid({ forecast, unit, order }: Props) {
+  const cards = detailCards({ forecast, unit, order, reveal: true })
+  return (
+    <div className="details">
+      {cards.uv}
+      {cards.feels}
+      {cards.wind}
+      {cards.humidity}
+      {cards.precip}
+      {cards.sun}
     </div>
   )
 }
@@ -140,7 +163,7 @@ function Compass({ direction }: { direction: number }) {
   )
 }
 
-function SunCard({ forecast, order }: { forecast: Forecast; order: number }) {
+function SunCard({ forecast, order, reveal }: { forecast: Forecast; order: number; reveal: boolean }) {
   const today = forecast.daily[0]
   const tomorrow = forecast.daily[1]
   const now = minutesOf(forecast.current.time)
@@ -157,7 +180,7 @@ function SunCard({ forecast, order }: { forecast: Forecast; order: number }) {
   const progress = Math.min(1.08, Math.max(-0.08, t))
 
   return (
-    <Card title={title} icon="sunrise" order={order} className="card--sun" reveal lag={1}>
+    <Card title={title} icon="sunrise" order={order} className="card--sun" reveal={reveal} lag={1}>
       <div className="sun">
         <div className="sun__stats">
           <p className="detail__value">{clockLabel(main)}</p>
