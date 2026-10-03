@@ -231,9 +231,13 @@
 .env__rain {
   position: absolute;
   inset: 0;
+  transition: opacity var(--motion-weather-transition) var(--ease-weather);
+}
+
+.env__rain-canvas {
+  display: block;
   width: 100%;
   height: 100%;
-  transition: opacity var(--motion-weather-transition) var(--ease-weather);
 }
 
 .env__lightning {
