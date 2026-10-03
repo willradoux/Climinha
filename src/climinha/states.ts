@@ -15,6 +15,7 @@ export type Mood =
   | 'hot'
   | 'cold'
   | 'freezing'
+  | 'squint'
 
 export interface BodyColors {
   light: string
@@ -307,6 +308,12 @@ export function eyesFor(mood: Mood): [EyeShape, EyeShape] {
       return [
         { rx: 9, ry: 14.5, ...OPEN, lid: -10.5, lidTilt: -6, dy: -1 },
         { rx: 9, ry: 14.5, ...OPEN, lid: -10.5, lidTilt: -6, dy: -1 },
+      ]
+    case 'squint':
+      // apertando os olhos por causa do sol
+      return [
+        { rx: 10, ry: 12, dy: 1, arc: false, lid: -3, lidTilt: 2.5, curve: 1.5, noLine: false },
+        { rx: 10, ry: 12, dy: 1, arc: false, lid: -3, lidTilt: 2.5, curve: 1.5, noLine: false },
       ]
     case 'hot':
       // calor: pálpebras pesadas e caídas, cansado (sem traço — não é irritação)

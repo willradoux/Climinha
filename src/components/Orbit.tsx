@@ -1,30 +1,97 @@
-import { motion, useReducedMotion } from 'motion/react'
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useReducedMotion } from 'motion/react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import type { Mood } from '../climinha/states'
 import type { TemperatureUnit } from '../weather/store'
 import type { Forecast } from '../weather/types'
 import { detailCards, type DetailId } from './Details'
 
 /**
  * Computador: o Climinha no centro "apresentando" o clima. Os cards de detalhe ficam
- * em volta dele, ligados por linhas finas que saem do corpo dele; a linha do card sob o
- * mouse se acende (e ele já olha para o mouse).
+ * em volta dele e ele vai visitá-los — sozinho, num passeio de tempos em tempos, ou
+ * quando o mouse passa por um card — reagindo ao que cada um mostra.
  */
 
 const LEFT: DetailId[] = ['uv', 'feels', 'humidity']
 const RIGHT: DetailId[] = ['wind', 'precip', 'sun']
+const TOUR: DetailId[] = ['uv', 'wind', 'feels', 'precip', 'humidity', 'sun']
+
+/** tempo ao lado do card e tempo de volta no centro, no passeio (ms) */
+const STAY_MS = 3800
+const REST_MS = 4200
+
+export interface VisitReaction {
+  mood?: Mood
+  effect?: 'sweat' | 'drip'
+  /** vento: o corpo é soprado para o lado */
+  gust?: boolean
+  /** para onde olhar: -1 esquerda … 1 direita, -1 cima … 1 baixo */
+  look?: { x: number; y: number }
+}
+
+/** Como o Climinha reage ao card que está visitando. */
+export function reactionFor(id: DetailId, f: Forecast): VisitReaction {
+  const c = f.current
+  const today = f.daily[0]
+  switch (id) {
+    case 'uv': {
+      const uv = c.isDay ? c.uv : 0
+      // sol forte: aperta os olhos; fraco: feliz; à noite: só olha
+      return uv >= 3 ? { mood: 'squint', look: { x: 0, y: -0.8 } } : { mood: c.isDay ? 'happy' : 'neutral' }
+    }
+    case 'feels':
+      if (c.apparent >= 30) return { mood: 'hot', effect: 'sweat' }
+      if (c.apparent < 16) return { mood: 'cold' }
+      return { mood: 'happy' }
+    case 'humidity':
+      return c.humidity >= 70 ? { mood: 'hot', effect: 'sweat' } : { mood: 'neutral', look: { x: 0, y: 0.6 } }
+    case 'precip':
+      return (today?.precipSum ?? 0) > 0.2 || f.daily[1]?.precipSum > 0.5
+        ? { mood: 'bored', effect: 'drip', look: { x: 0, y: 0.7 } }
+        : { mood: 'happy' }
+    case 'wind':
+      return c.windSpeed >= 8 ? { mood: 'squint', gust: true } : { mood: 'neutral' }
+    case 'sun':
+      return { mood: c.isDay ? 'happy' : 'sleepy', look: { x: 0, y: -0.6 } }
+  }
+}
 
 interface Props {
   forecast: Forecast
   unit: TemperatureUnit
   /** o hero (cidade, temperatura, lugar do Climinha, condição) */
   hero: ReactNode
-  /** lugar reservado do Climinha dentro do hero */
-  anchorRef: RefObject<HTMLDivElement | null>
+  /** card que o Climinha está visitando (null = no centro) */
+  visit: DetailId | null
+  onVisit: (id: DetailId | null) => void
 }
 
-export function OrbitStage({ forecast, unit, hero, anchorRef }: Props) {
+export function OrbitStage({ forecast, unit, hero, visit, onVisit }: Props) {
+  const reduced = useReducedMotion() ?? false
   const cards = detailCards({ forecast, unit, order: 0, reveal: false })
-  const [hovered, setHovered] = useState<DetailId | null>(null)
+  const hovering = useRef(false)
+
+  // passeio: visita um card, volta ao centro, visita o próximo… (pausa enquanto o mouse está num card)
+  useEffect(() => {
+    if (reduced) return
+    let step = 0
+    let timer = 0
+    const next = (atCard: boolean) => {
+      timer = window.setTimeout(
+        () => {
+          if (hovering.current) return next(atCard)
+          if (atCard) onVisit(null)
+          else onVisit(TOUR[step++ % TOUR.length])
+          next(!atCard)
+        },
+        atCard ? STAY_MS : REST_MS,
+      )
+    }
+    next(false)
+    return () => {
+      window.clearTimeout(timer)
+      onVisit(null)
+    }
+  }, [reduced, onVisit])
 
   const side = (ids: DetailId[], which: 'left' | 'right') => (
     <div className={`orbit__side orbit__side--${which}`}>
@@ -34,9 +101,16 @@ export function OrbitStage({ forecast, unit, hero, anchorRef }: Props) {
             key={id}
             className="orbit__slot"
             data-orbit-card={id}
-            data-active={hovered === id || undefined}
-            onPointerEnter={() => setHovered(id)}
-            onPointerLeave={() => setHovered((h) => (h === id ? null : h))}
+            data-side={which}
+            data-active={visit === id || undefined}
+            onPointerEnter={() => {
+              hovering.current = true
+              onVisit(id)
+            }}
+            onPointerLeave={() => {
+              hovering.current = false
+              onVisit(null)
+            }}
           >
             {cards[id]}
           </div>
@@ -47,80 +121,9 @@ export function OrbitStage({ forecast, unit, hero, anchorRef }: Props) {
 
   return (
     <section className="orbit">
-      <OrbitLines anchorRef={anchorRef} hovered={hovered} />
       {side(LEFT, 'left')}
       <div className="orbit__center">{hero}</div>
       {side(RIGHT, 'right')}
     </section>
-  )
-}
-
-interface Line {
-  id: string
-  d: string
-}
-
-/** Linhas do corpo do Climinha até a borda interna de cada card. */
-function OrbitLines({ anchorRef, hovered }: { anchorRef: RefObject<HTMLDivElement | null>; hovered: string | null }) {
-  // o palco é o pai do próprio <svg>: o ref do svg já existe quando este efeito roda
-  // (o ref do palco ainda não — por isso as linhas não apareciam)
-  const svgRef = useRef<SVGSVGElement>(null)
-  const reduced = useReducedMotion() ?? false
-  const [lines, setLines] = useState<Line[]>([])
-  const [size, setSize] = useState({ w: 0, h: 0 })
-
-  useLayoutEffect(() => {
-    const stage = svgRef.current?.parentElement
-    if (!stage) return
-    const measure = () => {
-      const anchor = anchorRef.current
-      if (!anchor) return
-      const s = stage.getBoundingClientRect()
-      const a = anchor.getBoundingClientRect()
-      // centro do corpo (o desenho tem folga embaixo para a sombra)
-      const cx = a.left - s.left + a.width / 2
-      const cy = a.top - s.top + a.height * 0.47
-      const bodyHalf = a.width * 0.44
-      const next: Line[] = []
-      stage.querySelectorAll<HTMLElement>('[data-orbit-card]').forEach((el) => {
-        const r = el.getBoundingClientRect()
-        const isLeft = r.right - s.left < cx
-        const x2 = isLeft ? r.right - s.left : r.left - s.left
-        const y2 = r.top - s.top + r.height / 2
-        const x1 = cx + (isLeft ? -bodyHalf : bodyHalf)
-        const y1 = cy + (y2 - cy) * 0.18
-        const mx = (x1 + x2) / 2
-        next.push({ id: el.dataset.orbitCard ?? '', d: `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}` })
-      })
-      setLines(next)
-      setSize({ w: s.width, h: s.height })
-    }
-    measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(stage)
-    window.addEventListener('resize', measure)
-    // a fonte e os dados podem mudar a altura dos cards logo depois da montagem
-    const t = window.setTimeout(measure, 600)
-    return () => {
-      ro.disconnect()
-      window.removeEventListener('resize', measure)
-      window.clearTimeout(t)
-    }
-  }, [anchorRef])
-
-  return (
-    <svg ref={svgRef} className="orbit__lines" width={size.w} height={size.h} aria-hidden="true">
-      {lines.map((l, i) => (
-        <motion.path
-          key={l.id}
-          d={l.d}
-          className="orbit__line"
-          data-active={hovered === l.id || undefined}
-          initial={reduced ? false : { pathLength: 0, opacity: 0 }}
-          animate={{ pathLength: 1, opacity: 1 }}
-          transition={{ duration: 0.9, delay: 0.5 + i * 0.08, ease: [0.2, 0.8, 0.2, 1] }}
-        />
-      ))}
-    </svg>
   )
 }

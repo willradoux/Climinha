@@ -52,6 +52,8 @@ export interface CliminhaProps {
   fluid?: boolean
   /** chega neutro, olha para o céu e só então reage ao clima (e de novo a cada mudança) */
   perceive?: boolean
+  /** efeito pedido de fora (reação a um card): suor ou pingos */
+  effect?: 'sweat' | 'drip'
   /** transição dos olhos (ex.: piscadinha lenta e suave da intro) */
   eyeTransition?: Transition
   onTap?: () => void
@@ -71,6 +73,7 @@ export function Climinha({
   fluid = true,
   perceive = false,
   eyeTransition,
+  effect,
   onTap,
   className,
   style,
@@ -446,12 +449,14 @@ export function Climinha({
           <Eye cx={EYE_LEFT.x} cy={EYE_LEFT.y} shape={leftEye} side="left" blink={blink} slow={slowEyes} transition={eyeTransition} x={eyeX} y={eyeY} />
           <Eye cx={EYE_RIGHT.x} cy={EYE_RIGHT.y} shape={rightEye} side="right" blink={blink} slow={slowEyes} transition={eyeTransition} x={eyeX} y={eyeY} />
           </motion.g>
-          {live && state.temp === 'hot' && <Sweat fill={`url(#${uid}-drop)`} />}
+          {live && (state.temp === 'hot' || effect === 'sweat') && <Sweat fill={`url(#${uid}-drop)`} />}
         </motion.g>
         </motion.g>
 
         {state.storm && <Zaps live={live} />}
-        {live && state.drops > 0 && <Drops count={state.drops === 2 ? 5 : 3} fill={`url(#${uid}-drop)`} />}
+        {live && (state.drops > 0 || effect === 'drip') && (
+          <Drops count={state.drops === 2 ? 5 : 3} fill={`url(#${uid}-drop)`} />
+        )}
       </motion.g>
     </svg>
   )

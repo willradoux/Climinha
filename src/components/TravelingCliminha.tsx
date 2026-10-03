@@ -13,6 +13,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 're
 import { Climinha, type CliminhaPhase } from '../climinha/Climinha'
 import type { CliminhaState, Mood } from '../climinha/states'
 import { motionTokens } from '../theme/motion'
+import type { VisitReaction } from './Orbit'
 
 /**
  * O Climinha que acompanha a interface.
@@ -50,6 +51,10 @@ interface Props {
   fromRef?: RefObject<HTMLDivElement | null>
   /** deslocamento do arraste entre cidades */
   swipeX?: MotionValue<number>
+  /** computador: card que ele está visitando (null = no centro) */
+  visit?: string | null
+  /** como reagir ao card visitado */
+  reaction?: VisitReaction | null
 }
 
 export function TravelingCliminha({
@@ -61,6 +66,8 @@ export function TravelingCliminha({
   onReady,
   fromRef,
   swipeX,
+  visit = null,
+  reaction = null,
 }: Props) {
   const reduced = useReducedMotion() ?? false
   const { scrollY } = useScroll()
@@ -128,9 +135,20 @@ export function TravelingCliminha({
       const e = p * p * (3 - 2 * p) // smoothstep
       const hx = geo.anchorX
       const hy = geo.anchorY - s
-      const tx = hx + (dx - hx) * e
-      const ty = hy + (dy - hy) * e
-      const ts = (heroW + (dw - heroW) * e) / heroW
+      let tx = hx + (dx - hx) * e
+      let ty = hy + (dy - hy) * e
+      let ts = (heroW + (dw - heroW) * e) / heroW
+
+      // visitando um card (só no topo da página): voa até o lado interno do card, menor
+      const card = visit && e < 0.15 ? document.querySelector<HTMLElement>(`[data-orbit-card="${visit}"]`) : null
+      if (card) {
+        const r = card.getBoundingClientRect()
+        const vwid = Math.min(heroW * 0.6, 150)
+        const vhgt = vwid * RATIO
+        tx = card.dataset.side === 'left' ? r.right + 10 : r.left - vwid - 10
+        ty = r.top + r.height / 2 - vhgt * 0.55
+        ts = vwid / heroW
+      }
 
       rawX.set(tx)
       rawY.set(ty)
@@ -167,14 +185,25 @@ export function TravelingCliminha({
 
     place(window.scrollY, true)
     return scrollY.on('change', (s) => place(s, false))
-  }, [geo, scrollY, reduced, rawX, rawY, rawScale, progress, x, y, scale, fromRef])
+  }, [geo, scrollY, reduced, rawX, rawY, rawScale, progress, x, y, scale, fromRef, visit])
 
   // --- arraste: acompanha só de leve; a velocidade do gesto vira inércia no corpo ---
   const screenX = useTransform(() => x.get() + swipe.get() * SWIPE_FOLLOW)
-  const swipeVelocity = useVelocity(swipe)
-  const leanRaw = useTransform(swipeVelocity, [-2200, 0, 2200], [-1, 0, 1], { clamp: true })
+  const lateralVelocity = useVelocity(screenX)
+  const leanRaw = useTransform(lateralVelocity, [-1800, 0, 1800], [-1, 0, 1], { clamp: true })
   // mola pouco amortecida: depois de parar ele ainda balança um pouco, como gelatina
-  const lean = useSpring(leanRaw, motionTokens.climinha.jelly)
+  const springLean = useSpring(leanRaw, motionTokens.climinha.jelly)
+  // vento: rajadas sopram o corpo para o lado enquanto ele visita o card de vento
+  const gust = useMotionValue(0)
+  useEffect(() => {
+    if (reduced || !reaction?.gust) {
+      const c = animate(gust, 0, { duration: 0.6 })
+      return () => c.stop()
+    }
+    const c = animate(gust, [0, 0.9, 0.45, 1, 0.55, 0.85, 0.4], { duration: 2.6, repeat: Infinity, ease: 'easeInOut' })
+    return () => c.stop()
+  }, [reaction?.gust, reduced, gust])
+  const lean = useTransform(() => springLean.get() + gust.get())
 
   // --- inclinação e esticada pela velocidade do scroll ----------------------
   const velocity = useVelocity(scrollY)
@@ -197,16 +226,27 @@ export function TravelingCliminha({
     return () => window.removeEventListener('pointermove', onMove)
   }, [reduced, pointerX, pointerY])
 
+  const visitSide = visit ? document.querySelector<HTMLElement>(`[data-orbit-card="${visit}"]`)?.dataset.side : null
+  const visitLookX = reaction?.look?.x ?? (visitSide === 'left' ? -0.9 : visitSide === 'right' ? 0.9 : 0)
+  const visitLookY = reaction?.look?.y ?? 0.1
+  const visiting = useSpring(visit ? 1 : 0, { stiffness: 120, damping: 20 })
+  useEffect(() => {
+    visiting.set(visit ? 1 : 0)
+  }, [visit, visiting])
   const lookX = useTransform(() => {
     const e = progress.get()
     // arrastando, olha para onde a tela vai
     const drag = Math.max(-1, Math.min(1, -swipe.get() / 300))
-    return pointerX.get() * (1 - e) * 0.6 + drag * 0.8 + pointerX.get() * 0.4
+    const base = pointerX.get() * (1 - e) * 0.6 + drag * 0.8 + pointerX.get() * 0.4
+    const v = visiting.get()
+    return base * (1 - v) + visitLookX * v
   })
   const lookY = useTransform(() => {
     const e = progress.get()
     const dir = Math.max(-0.4, Math.min(0.4, velocity.get() / 3000))
-    return pointerY.get() * (1 - e) + (-0.45 + dir) * e
+    const base = pointerY.get() * (1 - e) + (-0.45 + dir) * e
+    const v = visiting.get()
+    return base * (1 - v) + visitLookY * v
   })
 
   const ready = !!geo
@@ -236,7 +276,8 @@ export function TravelingCliminha({
             size="100%"
             lookX={lookX}
             lookY={lookY}
-            moodOverride={moodOverride}
+            moodOverride={reaction?.mood ?? moodOverride}
+            effect={reaction?.effect}
             lean={lean}
             perceive
             onTap={() => {}}

@@ -1341,32 +1341,6 @@ button {
   order: -1;
 }
 
-/* linhas do Climinha até os cards */
-.orbit__lines {
-  position: absolute;
-  inset: 0;
-  overflow: visible;
-  pointer-events: none;
-}
-
-.orbit__line {
-  fill: none;
-  stroke: var(--fg);
-  stroke-opacity: 0.22;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-dasharray: 2 6;
-  transition:
-    stroke-opacity var(--motion-system-default) var(--ease-system),
-    stroke-width var(--motion-system-default) var(--ease-system);
-}
-
-.orbit__line[data-active] {
-  stroke-opacity: 0.7;
-  stroke-width: 2;
-  stroke-dasharray: none;
-}
-
 /* abaixo da órbita: 10 dias ao lado da previsão por hora */
 .content[data-orbit] {
   display: grid;

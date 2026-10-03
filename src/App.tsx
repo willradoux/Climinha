@@ -14,7 +14,8 @@ import { DetailGrid } from './components/Details'
 import { FloatingNav } from './components/FloatingNav'
 import { DailyCard, HourlyCard, PrecipitationCard } from './components/Forecasts'
 import { Hero, type HeroData } from './components/Hero'
-import { OrbitStage } from './components/Orbit'
+import { OrbitStage, reactionFor } from './components/Orbit'
+import type { DetailId } from './components/Details'
 import { Splash, SPLASH_MIN_MS } from './components/Splash'
 import { TravelingCliminha } from './components/TravelingCliminha'
 import { FirstRunContext } from './components/firstRun'
@@ -382,6 +383,12 @@ export default function App() {
 
   // teste no computador: layout em órbita (o celular segue igual)
   const orbit = useMediaQuery('(min-width: 1100px) and (min-height: 640px)')
+  // card que o Climinha está visitando no computador (null = no centro)
+  const [visit, setVisit] = useState<DetailId | null>(null)
+  const visitReaction = useMemo(
+    () => (orbit && visit && forecast ? reactionFor(visit, forecast) : null),
+    [orbit, visit, forecast],
+  )
 
   const [listOpen, setListOpen] = useState(false)
   const anchorRef = useRef<HTMLDivElement>(null)
@@ -433,7 +440,14 @@ export default function App() {
       >
         {/* computador: Climinha no centro, detalhes em órbita; celular: hero simples */}
         {orbit && forecast ? (
-          <OrbitStage key={`orbit-${place.id}`} forecast={forecast} unit={unit} hero={hero} anchorRef={anchorRef} />
+          <OrbitStage
+            key={`orbit-${place.id}`}
+            forecast={forecast}
+            unit={unit}
+            hero={hero}
+            visit={visit}
+            onVisit={setVisit}
+          />
         ) : (
           hero
         )}
@@ -513,6 +527,8 @@ export default function App() {
           moodOverride={moodOverride}
           layoutKey={`${place.id}-${forecast ? 1 : 0}-${noData ? 1 : 0}-${orbit ? 'orbita' : 'lista'}`}
           onReady={onTravelerReady}
+          visit={orbit ? visit : null}
+          reaction={visitReaction}
           swipeX={swipeX}
           fromRef={splashCharacterRef}
         />
