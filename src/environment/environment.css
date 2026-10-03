@@ -223,8 +223,8 @@
   inset: 0;
   background-image: var(--paper-grain);
   background-size: 180px 180px;
-  opacity: 0.2;
-  mix-blend-mode: overlay;
+  /* mistura normal e bem sutil: mix-blend-mode custava ~8 fps no Android */
+  opacity: 0.07;
 }
 
 /* ---------- chuva / relâmpago ---------- */
@@ -241,7 +241,6 @@
   inset: 0;
   opacity: 0;
   background: radial-gradient(70% 50% at var(--flash-x, 50%) 0%, rgba(200, 214, 255, 0.6), transparent 72%);
-  mix-blend-mode: screen;
 }
 
 /* movimento reduzido: atmosfera vira imagem estática */

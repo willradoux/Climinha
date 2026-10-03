@@ -1,5 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import { Climinha } from '../climinha/Climinha'
 import { NEUTRAL_STATE, type Mood } from '../climinha/states'
 import { motionTokens } from '../theme/motion'
@@ -12,22 +12,6 @@ import { motionTokens } from '../theme/motion'
 
 /** duração mínima da intro antes de liberar a interface (ms) */
 export const SPLASH_MIN_MS = 2700
-
-interface Puff {
-  left: number
-  top: number
-  size: number
-  dx: number
-  dy: number
-}
-
-// névoa nas bordas, que se desfaz para fora no fim
-const PUFFS: Puff[] = [
-  { left: -10, top: -8, size: 60, dx: -40, dy: -30 },
-  { left: 104, top: 6, size: 64, dx: 44, dy: -20 },
-  { left: 100, top: 96, size: 70, dx: 40, dy: 34 },
-  { left: -6, top: 104, size: 66, dx: -44, dy: 36 },
-]
 
 interface Props {
   visible: boolean
@@ -66,17 +50,6 @@ export function Splash({ visible, characterVisible, characterRef }: Props) {
           >
             {/* o céu da intro sai rápido: o voo até a Home fica visível */}
             <motion.div className="splash__sky" exit={{ opacity: 0 }} transition={{ duration: reduced ? 0.2 : 0.35 }} />
-            {PUFFS.map((p, i) => (
-              <motion.div
-                key={i}
-                className="splash__puff"
-                style={{ left: `${p.left}%`, top: `${p.top}%`, '--size': `${p.size}vmax` } as CSSProperties}
-                initial={reduced ? false : { opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={reduced ? { opacity: 0 } : { opacity: 0, scale: 1.3, x: `${p.dx}vw`, y: `${p.dy}vh` }}
-                transition={{ duration: reduced ? 0.2 : 1.1, ease: [0.25, 0.1, 0.25, 1] }}
-              />
-            ))}
           </motion.div>
         )}
       </AnimatePresence>

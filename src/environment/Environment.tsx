@@ -19,22 +19,21 @@ interface CloudSpec {
 }
 
 // posições determinísticas: nada de Math.random no render
+// poucas nuvens grandes por camada: cada uma é uma camada de GPU sobreposta ao céu,
+// e no celular o custo cresce com a sobreposição (8 no total)
 const FAR: CloudSpec[] = [
   { top: 6, width: 62, delay: 0.1, scale: 1 },
-  { top: 22, width: 54, delay: 0.55, scale: 0.9 },
-  { top: 38, width: 70, delay: 0.82, scale: 1.1 },
-  { top: 14, width: 48, delay: 0.33, scale: 0.8 },
+  { top: 30, width: 70, delay: 0.6, scale: 1.1 },
+  { top: 16, width: 50, delay: 0.35, scale: 0.85 },
 ]
 const MID: CloudSpec[] = [
-  { top: 2, width: 78, delay: 0.2, scale: 1 },
-  { top: 30, width: 66, delay: 0.62, scale: 0.95 },
-  { top: 52, width: 84, delay: 0.9, scale: 1.1 },
-  { top: 18, width: 58, delay: 0.42, scale: 0.85 },
+  { top: 4, width: 78, delay: 0.2, scale: 1 },
+  { top: 46, width: 84, delay: 0.7, scale: 1.1 },
+  { top: 24, width: 60, delay: 0.45, scale: 0.9 },
 ]
 const NEAR: CloudSpec[] = [
   { top: -6, width: 96, delay: 0.05, scale: 1.1 },
-  { top: 44, width: 104, delay: 0.5, scale: 1 },
-  { top: 70, width: 92, delay: 0.78, scale: 1.05 },
+  { top: 58, width: 100, delay: 0.55, scale: 1 },
 ]
 
 const STARS = Array.from({ length: 70 }, (_, i) => {

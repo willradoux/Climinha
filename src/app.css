@@ -358,18 +358,6 @@ button {
   box-shadow: 0 3px 0 rgba(0, 0, 0, 0.08);
 }
 
-/* granulado de papel: textura estática, sem custo de animação */
-.card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background-image: var(--paper-grain);
-  background-size: 180px 180px;
-  opacity: 0.22;
-  mix-blend-mode: overlay;
-  pointer-events: none;
-}
 
 .card__header {
   display: flex;
@@ -1239,20 +1227,6 @@ button {
   background: linear-gradient(180deg, var(--sky-top) 0%, var(--sky-mid) 52%, var(--sky-bottom) 100%);
 }
 
-.splash__puff {
-  position: absolute;
-  width: var(--size);
-  height: var(--size);
-  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
-  border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    color-mix(in srgb, var(--sky-bottom) 18%, #ffffff) 0%,
-    color-mix(in srgb, var(--sky-bottom) 30%, rgba(255, 255, 255, 0.85)) 45%,
-    transparent 100%
-  );
-  will-change: transform, opacity;
-}
 
 .splash__stage {
   position: fixed;
