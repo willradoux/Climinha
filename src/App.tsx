@@ -31,6 +31,9 @@ import './app.css'
 
 const LOADING_THEME = getTheme('clear', true)
 
+/** simulador de clima: só no ambiente local (dev ou build de teste com VITE_SIMULATOR=1) */
+const SIMULATOR = import.meta.env.DEV || import.meta.env.VITE_SIMULATOR === '1'
+
 export default function App() {
   const reduced = useReducedMotion() ?? false
   const { places: saved, addPlace, removePlace } = usePlaces()
@@ -51,9 +54,9 @@ export default function App() {
   const entry = entries[place.id]
 
   // simulador de clima (?weather=, ?temp=, ?debug): só no ambiente local, nunca no site publicado
-  const debug = useMemo(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('debug'), [])
+  const debug = useMemo(() => SIMULATOR && new URLSearchParams(window.location.search).has('debug'), [])
   const [simulation, setSimulation] = useState<Simulation | null>(() =>
-    import.meta.env.DEV ? simulationFromUrl() : null,
+    SIMULATOR ? simulationFromUrl() : null,
   )
   // relógio: a cada 30 s a previsão é ajustada à hora real da cidade (dia/noite, "Agora", "Hoje")
   // e o app marca que está em uso (o "começar do zero" só vale depois de um tempo fora)

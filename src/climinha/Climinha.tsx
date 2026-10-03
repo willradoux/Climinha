@@ -7,6 +7,7 @@ import {
   useSpring,
   useTransform,
   type MotionValue,
+  type Transition,
 } from 'motion/react'
 import { useEffect, useId, useRef, useState, type CSSProperties } from 'react'
 import { motionTokens } from '../theme/motion'
@@ -51,6 +52,8 @@ export interface CliminhaProps {
   fluid?: boolean
   /** chega neutro, olha para o céu e só então reage ao clima (e de novo a cada mudança) */
   perceive?: boolean
+  /** transição dos olhos (ex.: piscadinha lenta e suave da intro) */
+  eyeTransition?: Transition
   onTap?: () => void
   className?: string
   style?: CSSProperties
@@ -67,6 +70,7 @@ export function Climinha({
   lean,
   fluid = true,
   perceive = false,
+  eyeTransition,
   onTap,
   className,
   style,
@@ -108,7 +112,7 @@ export function Climinha({
   const sleepingMood: Mood | null =
     state.mood !== 'sleeping' ? null : wake === 'awake' ? 'neutral' : wake === 'drowsy' ? 'sleepy' : null
 
-  const mood = reaction ?? moodOverride ?? (perceiving ? 'curious' : null) ?? sleepingMood ?? state.mood
+  const mood = reaction ?? moodOverride ?? (perceiving ? 'neutral' : null) ?? sleepingMood ?? state.mood
 
   // sonolento: as pálpebras descem aos poucos ao longo dos 10 s
   const [drowse, setDrowse] = useState(0)
@@ -367,6 +371,11 @@ export function Climinha({
           <stop offset="0" stopColor="#f2f8ff" />
           <stop offset="1" stopColor="#8dbcf2" />
         </radialGradient>
+        <radialGradient id={`${uid}-storm`} cx="0.5" cy="0.62" r="0.5">
+          <stop offset="0" stopColor="#ffe27a" stopOpacity="0.95" />
+          <stop offset="0.55" stopColor="#ffc93d" stopOpacity="0.35" />
+          <stop offset="1" stopColor="#ffc93d" stopOpacity="0" />
+        </radialGradient>
         <clipPath id={`${uid}-clip`}>
           <path ref={setBodyRef(0)} d={BODY_PATH} />
         </clipPath>
@@ -408,6 +417,20 @@ export function Climinha({
           <path ref={setBodyRef(1)} d={BODY_PATH} fill={`url(#${uid}-body)`} />
           <path ref={setBodyRef(2)} d={BODY_PATH} fill={`url(#${uid}-warm)`} />
           <path ref={setBodyRef(3)} d={BODY_PATH} fill={`url(#${uid}-cool)`} />
+          {state.storm && (
+            <g clipPath={`url(#${uid}-clip)`}>
+              <motion.ellipse
+                cx="124"
+                cy="104"
+                rx="92"
+                ry="46"
+                fill={`url(#${uid}-storm)`}
+                initial={{ opacity: 0 }}
+                animate={live ? { opacity: [0.25, 0.5, 0.3, 0.85, 0.3, 0.45, 0.25] } : { opacity: 0.35 }}
+                transition={live ? { duration: 3.2, times: [0, 0.25, 0.4, 0.46, 0.55, 0.8, 1], repeat: Infinity, ease: 'easeInOut' } : undefined}
+              />
+            </g>
+          )}
           <g clipPath={`url(#${uid}-clip)`}>
             <path
               ref={setBodyRef(4)}
@@ -420,13 +443,14 @@ export function Climinha({
           </g>
 
           <motion.g style={{ x: eyeShift }}>
-          <Eye cx={EYE_LEFT.x} cy={EYE_LEFT.y} shape={leftEye} side="left" blink={blink} slow={slowEyes} x={eyeX} y={eyeY} />
-          <Eye cx={EYE_RIGHT.x} cy={EYE_RIGHT.y} shape={rightEye} side="right" blink={blink} slow={slowEyes} x={eyeX} y={eyeY} />
+          <Eye cx={EYE_LEFT.x} cy={EYE_LEFT.y} shape={leftEye} side="left" blink={blink} slow={slowEyes} transition={eyeTransition} x={eyeX} y={eyeY} />
+          <Eye cx={EYE_RIGHT.x} cy={EYE_RIGHT.y} shape={rightEye} side="right" blink={blink} slow={slowEyes} transition={eyeTransition} x={eyeX} y={eyeY} />
           </motion.g>
           {live && state.temp === 'hot' && <Sweat fill={`url(#${uid}-drop)`} />}
         </motion.g>
         </motion.g>
 
+        {state.storm && <Zaps live={live} />}
         {live && state.drops > 0 && <Drops count={state.drops === 2 ? 5 : 3} fill={`url(#${uid}-drop)`} />}
       </motion.g>
     </svg>
@@ -456,11 +480,12 @@ interface EyeProps {
   blink: boolean
   /** piscada lenta de sono */
   slow?: boolean
+  transition?: Transition
   x: MotionValue<number>
   y: MotionValue<number>
 }
 
-function Eye({ cx, cy, shape, side, blink, slow, x, y }: EyeProps) {
+function Eye({ cx, cy, shape, side, blink, slow, transition, x, y }: EyeProps) {
   const id = useId().replace(/[^a-zA-Z0-9_-]/g, '')
   const inward = side === 'left' ? 1 : -1
   const half = shape.rx + 4.5
@@ -472,7 +497,7 @@ function Eye({ cx, cy, shape, side, blink, slow, x, y }: EyeProps) {
   const lidClip = `M ${-half - 2} ${yLeft} Q 0 ${mid} ${half + 2} ${yRight} L ${half + 2} 40 L ${-half - 2} 40 Z`
   const lidLine = `M ${-half} ${yLeft} Q 0 ${mid} ${half} ${yRight}`
   // sono: tudo devagar e contínuo; o resto usa a mola dos olhos
-  const t = slow ? motionTokens.climinha.drowsy : motionTokens.climinha.eyes
+  const t = transition ?? (slow ? motionTokens.climinha.drowsy : motionTokens.climinha.eyes)
 
   return (
     <g transform={`translate(${cx} ${cy})`}>
@@ -492,7 +517,7 @@ function Eye({ cx, cy, shape, side, blink, slow, x, y }: EyeProps) {
               fill="#000000"
               clipPath={`url(#${id}-lid)`}
               initial={false}
-              animate={{ rx: shape.rx, ry: shape.ry, opacity: shape.arc ? 0 : 1 }}
+              animate={{ rx: shape.rx, ry: shape.ry, opacity: shape.arc && shape.lid <= 0 ? 0 : 1 }}
               transition={t}
             />
           </motion.g>
@@ -515,7 +540,7 @@ function Eye({ cx, cy, shape, side, blink, slow, x, y }: EyeProps) {
             fill="none"
             initial={false}
             animate={{ opacity: shape.arc && !shape.closed ? 1 : 0, scaleY: shape.arc && !shape.closed ? 1 : 0.4 }}
-            transition={t}
+            transition={shape.lid > 0 && shape.arc ? { ...t, delay: 0.12 } : t}
           />
           {/* dormindo: ‿ */}
           <motion.path
@@ -542,6 +567,42 @@ const DROP_SLOTS = [
   { x: 102, y: 143, delay: 1.9 },
   { x: 190, y: 136, delay: 2.4 },
 ]
+
+const ZAP_PATH = 'M 0 0 L 5 -7 L 2 -7 L 6 -14 L -1 -5 L 2 -5 Z'
+const ZAPS = [
+  { x: 34, y: 76, rotate: -38, delay: 0.3 },
+  { x: 206, y: 70, rotate: 32, delay: 1.4 },
+  { x: 132, y: 18, rotate: 4, delay: 2.3 },
+  { x: 222, y: 118, rotate: 78, delay: 3.1 },
+]
+
+/** Tempestade: raiozinhos estalando para fora do corpo, de tempos em tempos. */
+function Zaps({ live }: { live: boolean }) {
+  return (
+    <g>
+      {ZAPS.map((z, i) => (
+        <g key={i} transform={`translate(${z.x} ${z.y}) rotate(${z.rotate}) scale(1.7)`}>
+          <motion.path
+            d={ZAP_PATH}
+            fill="#ffd84f"
+            stroke="#b9780a"
+            strokeWidth="1"
+            strokeLinejoin="round"
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={
+              live
+                ? { opacity: [0, 1, 0.2, 1, 0], scale: [0.4, 1.1, 0.9, 1.05, 0.6] }
+                : { opacity: 0.8, scale: 1 }
+            }
+            transition={
+              live ? { duration: 0.55, times: [0, 0.2, 0.4, 0.6, 1], repeat: Infinity, repeatDelay: 3.4, delay: z.delay } : undefined
+            }
+          />
+        </g>
+      ))}
+    </g>
+  )
+}
 
 const SWEAT_SLOTS = [
   { x: 60, y: 66, delay: 0.2 },

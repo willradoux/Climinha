@@ -37,6 +37,8 @@ export interface CliminhaState {
   heavy: boolean
   /** sensação térmica: muda a cor, a expressão e os efeitos (suor, tremor) */
   temp?: TempFeel
+  /** tempestade: brilho amarelo por dentro e raios saindo do corpo */
+  storm?: boolean
 }
 
 /** acima de 34° calor · abaixo de 16° frio · abaixo de 5° muito frio */
@@ -112,9 +114,9 @@ const BODY: Record<WeatherKind | 'night', BodyColors> = {
     contactShadow: 'rgba(0, 4, 12, 0.42)',
   },
   storm: {
-    light: '#767d89',
-    mid: '#4d535e',
-    shade: '#202430',
+    light: '#5d6370',
+    mid: '#393e49',
+    shade: '#171a21',
     rim: 'rgba(200, 216, 245, 0.42)',
     halo: 'rgba(150, 170, 215, 0.14)',
     contactShadow: 'rgba(0, 0, 0, 0.5)',
@@ -187,7 +189,7 @@ export function climinhaFor(kind: WeatherKind, isDay: boolean, celsius?: number)
   const temp = celsius === undefined ? undefined : tempFeelFor(celsius)
   const body = tinted(nightCalm ? BODY.night : BODY[kind], temp)
   const mood = moodFor(kind, isDay, temp)
-  return { ...baseFor(kind, nightCalm, mood, body), temp }
+  return { ...baseFor(kind, nightCalm, mood, body), temp, storm: kind === 'storm' }
 }
 
 function baseFor(kind: WeatherKind, nightCalm: boolean, mood: Mood, body: BodyColors): CliminhaState {
@@ -262,14 +264,16 @@ export function eyesFor(mood: Mood): [EyeShape, EyeShape] {
         { rx: 9.5, ry: 12.5, ...OPEN, arc: true },
       ]
     case 'curious':
+      // curioso: olhos um pouco maiores e erguidos, iguais dos dois lados
       return [
-        { rx: 8.5, ry: 11, ...OPEN, dy: 3 },
-        { rx: 9.5, ry: 13, ...OPEN, dy: -5 },
+        { rx: 10, ry: 13.5, ...OPEN, dy: -2 },
+        { rx: 10, ry: 13.5, ...OPEN, dy: -2 },
       ]
     case 'confused':
+      // confuso: pálpebras internas erguidas, iguais dos dois lados
       return [
-        { rx: 8.5, ry: 11.5, ...OPEN, dy: 2 },
-        { rx: 9, ry: 12.5, ...OPEN, lid: -7, lidTilt: -10, dy: -2 },
+        { rx: 9, ry: 12, ...OPEN, lid: -8, lidTilt: -6 },
+        { rx: 9, ry: 12, ...OPEN, lid: -8, lidTilt: -6 },
       ]
     case 'sleepy':
       return [
@@ -287,10 +291,10 @@ export function eyesFor(mood: Mood): [EyeShape, EyeShape] {
         { rx: 9.5, ry: 11.5, ...OPEN, lid: -1.5, lidTilt: 3.5 },
       ]
     case 'wink':
-      // piscadinha de felicidade: um olho aberto, o outro fecha em ∩
+      // piscadinha (única exceção à simetria): a pálpebra direita desce e vira ∩
       return [
         { rx: 10, ry: 12.5, ...OPEN },
-        { rx: 9.5, ry: 12.5, ...OPEN, arc: true },
+        { rx: 10, ry: 12.5, ...OPEN, lid: 14, lidTilt: 0, curve: 2, noLine: true, arc: true },
       ]
     case 'sleeping':
       // olhos fechados em arco para baixo (‿)

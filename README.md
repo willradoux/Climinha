@@ -28,7 +28,7 @@ A interface segue a disciplina visual das interfaces da Apple (hierarquia tipogr
 | Nublado | cinza | chateado |
 | Neblina | cinza-azulado claro | normal |
 | Chuva | cinza médio a grafite | chateado, com gotas saindo do corpo |
-| Tempestade | quase preto | com medo (e se assusta com os relâmpagos) |
+| Tempestade | quase preto, com brilho amarelo por dentro e raios saindo do corpo | com medo (e se assusta com os relâmpagos) |
 | Noite | branco frio | dormindo |
 
 A temperatura também mexe com ele:
@@ -41,7 +41,7 @@ A temperatura também mexe com ele:
 
 Comportamentos:
 
-- **Intro:** ele passa bem perto da tela, como uma nuvem atravessando o céu, dá uma piscadinha e encolhe até o lugar dele.
+- **Intro:** ele passa bem perto da tela, como uma nuvem atravessando o céu, dá uma piscadinha de um olho só e encolhe até o lugar dele.
 - **Percebe o clima:** chega neutro, olha para o céu e só então reage — fica cinza no nublado, chateado na chuva, com frio no inverno. Ao trocar de cidade, olha de novo.
 - **Corpo fluido:** o contorno ondula o tempo todo e balança com inércia quando ele se move.
 - **Acompanha a interface:** ao rolar, ele se solta do topo e pousa em cima da barra de navegação, centralizado. A velocidade do scroll inclina e estica o corpo. Ao arrastar entre cidades ele continua no centro e balança com a inércia do gesto.

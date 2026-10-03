@@ -2,10 +2,11 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useEffect, useState, type CSSProperties, type RefObject } from 'react'
 import { Climinha } from '../climinha/Climinha'
 import { NEUTRAL_STATE, type Mood } from '../climinha/states'
+import { motionTokens } from '../theme/motion'
 
 /**
  * Intro: o Climinha passa bem perto da tela, enorme, como uma nuvem atravessando
- * o céu — olhos abertos. Depois dá uma piscadinha feliz e voa até o lugar dele
+ * o céu — olhos abertos. Depois dá uma piscadinha de um olho só e voa até o lugar dele
  * na interface (o TravelingCliminha começa o voo da posição medida aqui).
  */
 
@@ -39,15 +40,15 @@ interface Props {
 export function Splash({ visible, characterVisible, characterRef }: Props) {
   const reduced = useReducedMotion() ?? false
 
-  // olhos abertos enquanto passa → piscadinha → feliz
+  // olhos abertos enquanto passa → piscadinha de um olho só → abre de novo e vai para a tela
   const [mood, setMood] = useState<Mood>('neutral')
   useEffect(() => {
     if (reduced) return
-    const wink = window.setTimeout(() => setMood('wink'), 1750)
-    const happy = window.setTimeout(() => setMood('happy'), 2200)
+    const close = window.setTimeout(() => setMood('wink'), 1650)
+    const open = window.setTimeout(() => setMood('neutral'), 2250)
     return () => {
-      window.clearTimeout(wink)
-      window.clearTimeout(happy)
+      window.clearTimeout(close)
+      window.clearTimeout(open)
     }
   }, [reduced])
 
@@ -102,7 +103,14 @@ export function Splash({ visible, characterVisible, characterRef }: Props) {
                 animate={reduced ? undefined : { y: ['0%', '-1.6%', '0%'] }}
                 transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
               >
-                <Climinha state={NEUTRAL_STATE} moodOverride={mood} size="100%" ambient={false} fluid={false} />
+                <Climinha
+                  state={NEUTRAL_STATE}
+                  moodOverride={mood}
+                  size="100%"
+                  ambient={false}
+                  fluid={false}
+                  eyeTransition={motionTokens.climinha.wink}
+                />
               </motion.div>
             </motion.div>
           </motion.div>

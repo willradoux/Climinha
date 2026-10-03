@@ -35,7 +35,8 @@ export function RainCanvas({ intensity, reduced }: { intensity: 0 | 1 | 2; reduc
     }
 
     const resize = () => {
-      // gotas finas e borradas pelo movimento: 1x basta e custa bem menos
+      // 1x: gota em movimento já é borrada; resolução maior custava ~10 fps no celular.
+      // O redesenho é a cada quadro (a 30 fps a chuva parecia travada em telas de 120 Hz).
       const dpr = 1
       w = window.innerWidth
       h = window.innerHeight
@@ -79,7 +80,6 @@ export function RainCanvas({ intensity, reduced }: { intensity: 0 | 1 | 2; reduc
 
     let raf = 0
     let last = performance.now()
-    let lastDraw = 0
     const tick = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000)
       last = now
@@ -89,11 +89,7 @@ export function RainCanvas({ intensity, reduced }: { intensity: 0 | 1 | 2; reduc
         d.x += d.speed * dt * wind
         if (d.y > h + 20) drops[i] = spawn(false)
       }
-      // 30 fps bastam para chuva (o rastro esconde) e liberam metade do trabalho
-      if (now - lastDraw >= 32) {
-        draw()
-        lastDraw = now
-      }
+      draw()
       raf = requestAnimationFrame(tick)
     }
     const onVisibility = () => {

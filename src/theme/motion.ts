@@ -33,6 +33,8 @@ export const motionTokens = {
     eyes: { type: 'spring', stiffness: 320, damping: 26 },
     blink: { duration: 0.09, ease: 'easeIn' },
     drowsyBlink: { duration: 0.55, ease: [0.45, 0, 0.25, 1] },
+    /** piscadinha da intro: a pálpebra desce e sobe suave, sem mola */
+    wink: { duration: 0.3, ease: [0.45, 0, 0.2, 1] },
     /** pálpebras de sono: descem devagar, sem mola */
     drowsy: { duration: 1.4, ease: [0.4, 0, 0.2, 1] },
     /** intro → hero: encolhe devagar, quase sem quique */

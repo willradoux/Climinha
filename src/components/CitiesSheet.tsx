@@ -8,7 +8,7 @@ import {
   useTransform,
   type PanInfo,
 } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { WeatherIcon } from '../icons/WeatherIcon'
 import { UiIcon } from '../icons/UiIcon'
 import { motionTokens } from '../theme/motion'
@@ -44,7 +44,9 @@ function Sheet({ searchFirst, onClose, places, entries, unit, currentId, onSelec
   const sheetRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(() => sheetHeight())
   const positions = { full: 0, medium: Math.round(height * 0.38), closed: height + 40 }
-  const y = useMotionValue(positions.closed)
+  // busca: a janela já nasce aberta, com o campo visível — no iPhone o teclado só abre
+  // com foco dentro do toque, e focar um campo fora da tela fazia o Safari rolar tudo
+  const y = useMotionValue(searchFirst ? positions.full : positions.closed)
   const backdrop = useTransform(y, [positions.closed, positions.medium], [0, 1])
   const [snap, setSnap] = useState<Snap>(searchFirst ? 'full' : 'medium')
   const [editing, setEditing] = useState(false)
@@ -256,6 +258,12 @@ function SearchPanel({
 
   const searching = query.trim().length >= 2
 
+  // foco no mesmo ciclo do toque (abre o teclado no iPhone), sem rolar a página
+  const inputRef = useRef<HTMLInputElement>(null)
+  useLayoutEffect(() => {
+    if (autoFocus) inputRef.current?.focus({ preventScroll: true })
+  }, [autoFocus])
+
   return (
     <div className="sheet__body">
       <label className="search">
@@ -266,7 +274,7 @@ function SearchPanel({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={onExpand}
-          autoFocus={autoFocus}
+          ref={inputRef}
           onKeyDown={onKeyDown}
           aria-label="Buscar cidade"
           aria-controls="search-results"

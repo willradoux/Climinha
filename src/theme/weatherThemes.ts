@@ -473,4 +473,8 @@ export function applyTheme(theme: WeatherTheme) {
     document.head.appendChild(meta)
   }
   meta.content = theme.metaColor
+  // o Safari do iPhone pinta as faixas do topo e da barra de baixo com a cor de fundo
+  // da página: acompanha o céu (topo = alto do céu, base = horizonte)
+  root.style.backgroundColor = theme.skyTop
+  document.body.style.backgroundColor = theme.skyBottom
 }

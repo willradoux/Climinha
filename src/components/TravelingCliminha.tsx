@@ -215,7 +215,11 @@ export function TravelingCliminha({
   if (!geo) return null
 
   return (
-    <motion.div className="traveler" style={{ x: screenX, y, scale, width: geo.anchorW, originX: 0, originY: 0 }}>
+    <motion.div
+      className="traveler"
+      // pousando: por cima do céu da intro (que ainda está sumindo); depois volta para baixo da barra
+      style={{ x: screenX, y, scale, width: geo.anchorW, originX: 0, originY: 0, zIndex: landing ? 110 : 15 }}
+    >
       <motion.div style={reduced ? undefined : { rotate, scaleY, scaleX, originY: 1 }}>
         <motion.div
           style={{ originY: 1 }}
