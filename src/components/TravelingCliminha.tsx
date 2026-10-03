@@ -156,6 +156,8 @@ export function TravelingCliminha({
         void animate(y, ty, t)
         void animate(scale, ts, t)
         setLanding(true)
+        // a camada alta vale só durante o voo — por tempo, sem depender do fim da animação
+        window.setTimeout(() => setLanding(false), 1600)
       } else {
         x.jump(tx)
         y.jump(ty)
@@ -218,7 +220,7 @@ export function TravelingCliminha({
     <motion.div
       className="traveler"
       // pousando: por cima do céu da intro (que ainda está sumindo); depois volta para baixo da barra
-      style={{ x: screenX, y, scale, width: geo.anchorW, originX: 0, originY: 0, zIndex: landing ? 110 : 15 }}
+      style={{ x: screenX, y, scale, width: geo.anchorW, originX: 0, originY: 0, zIndex: landing ? 101 : 15 }}
     >
       <motion.div style={reduced ? undefined : { rotate, scaleY, scaleX, originY: 1 }}>
         <motion.div
