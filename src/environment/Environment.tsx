@@ -149,6 +149,9 @@ export const Environment = memo(function Environment({ theme, onLightning }: Pro
       {/* contraste dinâmico: o próprio céu escurece de leve atrás do hero */}
       <div className="env__scrim" />
 
+      {/* granulado de papel sobre o céu: estático, dá textura de ilustração impressa */}
+      <div className="env__grain" />
+
       <Lightning active={a.lightning && !reduced} onFlash={onLightning} />
     </div>
   )

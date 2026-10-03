@@ -1,2 +1,4 @@
+@import '@fontsource-variable/fredoka/wght.css';
+@import '@fontsource-variable/nunito/wght.css';
 @import './theme/tokens.css';
 @import './icons/icons.css';

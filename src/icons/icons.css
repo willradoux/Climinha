@@ -1,20 +1,31 @@
+/* Paleta dos ícones ilustrados: cor chapada (fill), traço de tinta (ink) e a cor
+   deslocada da impressão (mis). Em céus claros (neblina), o traço escurece. */
 :root {
-  --wi-cloud: #ffffff;
-  --wi-cloud-back: rgba(255, 255, 255, 0.62);
-  --wi-sun: #ffd24d;
-  --wi-moon: #eef0fa;
-  --wi-rain: #63b4ff;
-  --wi-bolt: #ffd24d;
-  --wi-fog: rgba(255, 255, 255, 0.8);
+  --wi-cloud-fill: #fbf8f1;
+  --wi-cloud-ink: #aeb9cb;
+  --wi-cloud-mis: #9fc3ee;
+  --wi-back-ink: rgba(251, 248, 241, 0.6);
+  --wi-sun-fill: #ffcf4a;
+  --wi-sun-ink: #e59a1c;
+  --wi-sun-mis: #ff8f6b;
+  --wi-moon-fill: #f4ecd6;
+  --wi-moon-ink: #c7b685;
+  --wi-moon-mis: #9fb6ec;
+  --wi-rain-fill: #74bcff;
+  --wi-rain-ink: #3c87d8;
+  --wi-rain-mis: #b5e0ff;
+  --wi-bolt-fill: #ffd84f;
+  --wi-bolt-ink: #d9940f;
+  --wi-bolt-mis: #ff8f6b;
+  --wi-fog: rgba(251, 248, 241, 0.85);
 }
 
 :root[data-scheme='dark-on-light'] {
-  --wi-cloud: #7d8a9c;
-  --wi-cloud-back: #a9b4c2;
-  --wi-sun: #f2b01e;
-  --wi-rain: #2f86e0;
-  --wi-fog: #7d8a9c;
-  --wi-moon: #7d8a9c;
+  --wi-cloud-fill: #ffffff;
+  --wi-cloud-ink: #6f7c90;
+  --wi-back-ink: #8e9aac;
+  --wi-fog: #6f7c90;
+  --wi-moon-ink: #8e7c4a;
 }
 
 .wi {
@@ -23,37 +34,63 @@
   overflow: visible;
 }
 
-.wi-cloud {
-  fill: var(--wi-cloud);
-}
-.wi-cloud-back {
-  fill: var(--wi-cloud-back);
-}
-.wi-sun {
-  stroke: var(--wi-sun);
-}
-.wi-sun-fill {
-  fill: var(--wi-sun);
-}
-.wi-moon {
-  fill: var(--wi-moon);
-}
-.wi-rain {
-  stroke: var(--wi-rain);
-}
-.wi-bolt {
-  fill: var(--wi-bolt);
-}
-.wi-fog {
-  stroke: var(--wi-fog);
+.wi-fill,
+.wi-mis,
+.wi-ink {
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
+.wi-mis {
+  opacity: 0.5;
+}
+
+.wi-ink {
+  fill: none;
+  stroke-width: 1.15;
+}
+
+.wi-fill--cloud { fill: var(--wi-cloud-fill); }
+.wi-ink--cloud { stroke: var(--wi-cloud-ink); }
+.wi-mis--cloud { fill: var(--wi-cloud-mis); }
+.wi-ink--back { stroke: var(--wi-back-ink); stroke-width: 1.4; }
+
+.wi-fill--sun { fill: var(--wi-sun-fill); }
+.wi-ink--sun { stroke: var(--wi-sun-ink); }
+.wi-mis--sun { fill: var(--wi-sun-mis); }
+.wi-ray {
+  stroke: var(--wi-sun-fill);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
+
+.wi-fill--moon { fill: var(--wi-moon-fill); }
+.wi-ink--moon { stroke: var(--wi-moon-ink); }
+.wi-mis--moon { fill: var(--wi-moon-mis); }
+
+.wi-fill--rain { fill: var(--wi-rain-fill); }
+.wi-ink--rain { stroke: var(--wi-rain-ink); stroke-width: 0.9; }
+.wi-mis--rain { fill: var(--wi-rain-mis); }
+
+.wi-fill--bolt { fill: var(--wi-bolt-fill); }
+.wi-ink--bolt { stroke: var(--wi-bolt-ink); }
+.wi-mis--bolt { fill: var(--wi-bolt-mis); }
+
+.wi-fog {
+  fill: none;
+  stroke: var(--wi-fog);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ícones de interface: traço um pouco mais grosso e arredondado, menos "kit de UI" */
 .ui-icon {
   display: block;
   flex: none;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
+  stroke-width: 2.1;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
