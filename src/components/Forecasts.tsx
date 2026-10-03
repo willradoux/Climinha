@@ -61,7 +61,7 @@ export function HourlyCard({ forecast, unit, order }: { forecast: Forecast; unit
   const summary = hourlySummary(forecast.hourly)
 
   return (
-    <Card title="Hora a hora" icon="clock" className="card--hourly" order={order} reveal>
+    <Card title="Previsão por hora" icon="clock" className="card--hourly" order={order} reveal>
       {summary && <p className="card__summary">{summary}</p>}
       <div className="hourly" data-hscroll tabIndex={0} aria-label="Próximas 24 horas">
         {items.map((item) =>
@@ -120,7 +120,7 @@ export function DailyCard({ forecast, unit, order }: { forecast: Forecast; unit:
   const now = forecast.current.temperature
 
   return (
-    <Card title="Próximos 10 dias" icon="calendar" className="card--daily" order={order}>
+    <Card title="Previsão para 10 dias" icon="calendar" className="card--daily" order={order}>
       <ul className="daily">
         {days.map((d, i) => {
           const left = ((d.min - low) / span) * 100
@@ -170,7 +170,7 @@ export function PrecipitationCard({ outlook, order }: { outlook: PrecipitationOu
   const reduced = useReducedMotion()
   const max = Math.max(1, ...outlook.steps.map((s) => s.precipitation))
   return (
-    <Card title="Chuva por perto" icon="umbrella" className="card--precip" order={order} reveal>
+    <Card title="Chuva próxima" icon="umbrella" className="card--precip" order={order} reveal>
       <p className="precip__text">{outlook.text}</p>
       <div className="precip__bars" aria-hidden="true">
         {outlook.steps.map((s, i) => (

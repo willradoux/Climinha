@@ -62,7 +62,6 @@ export const PlainIconButton = forwardRef<HTMLButtonElement, PlainIconButtonProp
 
 interface CardProps {
   title: string
-  /** mantido por compatibilidade; os títulos ilustrados não usam ícone */
   icon?: UiIconName
   children: ReactNode
   className?: string
@@ -75,13 +74,14 @@ interface CardProps {
 }
 
 /** Card de dados: material simples (sem blur), raio de card, título discreto. */
-export function Card({ title, children, className, order = 0, reveal, lag }: CardProps) {
+export function Card({ title, icon, children, className, order = 0, reveal, lag }: CardProps) {
   const reduced = useReducedMotion()
   const firstRun = useContext(FirstRunContext)
   const delay = firstRun ? entrance.firstCard + order * entrance.cardStep : order * 0.025
   const classes = ['card', className].filter(Boolean).join(' ')
   const header = (
     <header className="card__header">
+      {icon && <UiIcon name={icon} size={14} />}
       <h2 className="card__title">{title}</h2>
     </header>
   )

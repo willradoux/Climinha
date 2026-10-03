@@ -51,13 +51,9 @@
   --font-system: 'Nunito Variable', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Fredoka Variable', 'Fredoka', 'Nunito Variable', system-ui, sans-serif;
 
-  /* materiais ilustrados: superfícies sólidas com traço de tinta, sem vidro */
+  /* base escura das superfícies (lista de cidades) */
   --ink: #131925;
-  --ink-line: rgba(255, 255, 255, 0.09);
   --paper-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  /* cantos irregulares, como nuvem */
-  --radius-organic: 30px 36px 28px 34px / 32px 28px 36px 30px;
-  --radius-pebble: 26px 32px 28px 30px / 30px 26px 32px 28px;
 
   --type-location: 17px;
   --type-temperature: clamp(60px, 17vw, 72px);
