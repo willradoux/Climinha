@@ -25,7 +25,7 @@ import { liveForecast } from './weather/live'
 import { HERE_ID, locateUser, locationPermission, placeAt, timezonePlace, watchUser } from './weather/location'
 import { precipitationOutlook } from './weather/outlook'
 import { applySimulation, simulationFromUrl, type Simulation } from './weather/simulate'
-import { locationAsked, markLocationAsked, readHere, useForecasts, usePlaces, useUnit, writeHere } from './weather/store'
+import { markSeen, readHere, useForecasts, usePlaces, useUnit, writeHere } from './weather/store'
 import type { Place } from './weather/types'
 import './app.css'
 
@@ -56,10 +56,21 @@ export default function App() {
     import.meta.env.DEV ? simulationFromUrl() : null,
   )
   // relógio: a cada 30 s a previsão é ajustada à hora real da cidade (dia/noite, "Agora", "Hoje")
+  // e o app marca que está em uso (o "começar do zero" só vale depois de um tempo fora)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
-    const id = window.setInterval(() => setNow(new Date()), 30_000)
-    return () => window.clearInterval(id)
+    const id = window.setInterval(() => {
+      setNow(new Date())
+      if (!document.hidden) markSeen()
+    }, 30_000)
+    const onHide = () => markSeen()
+    window.addEventListener('pagehide', onHide)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.clearInterval(id)
+      window.removeEventListener('pagehide', onHide)
+      document.removeEventListener('visibilitychange', onHide)
+    }
   }, [])
   const forecast = useMemo(() => {
     if (!entry?.data) return undefined
@@ -207,6 +218,7 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [goTo, safeIndex])
 
+  const canSwipe = places.length > 1
   const canPrev = safeIndex > 0
   const canNext = safeIndex < places.length - 1
   const release = useCallback(
@@ -223,7 +235,8 @@ export default function App() {
   const drag = useRef<{ x0: number; y0: number; lock: 'x' | 'y' | null; samples: [number, number][] } | null>(null)
   const dragged = useRef(false)
   const onPointerDown = (e: React.PointerEvent) => {
-    if (switching.current || e.button !== 0) return
+    // só dá para arrastar para o lado quando há outra cidade para onde ir
+    if (!canSwipe || switching.current || e.button !== 0) return
     if ((e.target as HTMLElement).closest('[data-hscroll], input, a')) return
     drag.current = { x0: e.clientX, y0: e.clientY, lock: null, samples: [[e.clientX, e.timeStamp]] }
     dragged.current = false
@@ -271,7 +284,7 @@ export default function App() {
     let idle = 0
     let lockedUntil = 0
     const onWheel = (e: WheelEvent) => {
-      if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.2) return
+      if (!canSwipe || Math.abs(e.deltaX) <= Math.abs(e.deltaY) * 1.2) return
       if ((e.target as HTMLElement).closest('[data-hscroll], [role="dialog"]')) return
       e.preventDefault()
       if (switching.current || performance.now() < lockedUntil) return
@@ -295,7 +308,7 @@ export default function App() {
       window.removeEventListener('wheel', onWheel)
       window.clearTimeout(idle)
     }
-  }, [swipeX, canPrev, canNext, release])
+  }, [swipeX, canPrev, canNext, canSwipe, release])
 
   // --- localização ---------------------------------------------------------
   const [locating, setLocating] = useState(false)
@@ -323,9 +336,8 @@ export default function App() {
     let stopWatch = () => {}
     void (async () => {
       const permission = await locationPermission()
+      // a cada abertura do app: a cidade é sempre a de onde a pessoa está
       if (permission === 'denied') return
-      if (permission !== 'granted' && locationAsked() && readHere() === null) return
-      markLocationAsked()
       try {
         const place = await locateUser()
         if (cancelled) return
@@ -390,6 +402,7 @@ export default function App() {
 
       <motion.main
         className="page"
+        data-swipe={canSwipe || undefined}
         style={{ x: swipeX, opacity: pageOpacity }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

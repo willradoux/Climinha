@@ -25,6 +25,7 @@ export function FloatingNav({ places, index, onSelect, onLocate, locating, onSea
       <PlainIconButton icon="location" label="Minha localização" onClick={onLocate} pressed={locating} />
       <PlainIconButton icon="search" label="Buscar cidade" onClick={onSearch} />
 
+      {places.length > 1 && (
       <div className="pager" role="tablist" aria-label="Cidades salvas">
         {places.map((p, i) => {
           const active = i === index
@@ -58,6 +59,7 @@ export function FloatingNav({ places, index, onSelect, onLocate, locating, onSea
           )
         })}
       </div>
+      )}
 
       <PlainIconButton icon="list" label="Cidades" onClick={onOpenList} pressed={listOpen} />
       <SettingsMenu {...settings} />

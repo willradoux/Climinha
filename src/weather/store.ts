@@ -5,12 +5,37 @@ import type { Forecast, Place } from './types'
 // v2: sem cidades padrão (a primeira cidade é a do usuário) e Celsius para todos
 const PLACES_KEY = 'climinha:places:v2'
 const HERE_KEY = 'climinha:here'
-const ASKED_KEY = 'climinha:location-asked'
 const CACHE_KEY = 'climinha:forecasts'
 const UNIT_KEY = 'climinha:unit:v2'
 const STALE_MS = 10 * 60 * 1000
 /** com o app aberto, procura dados novos neste intervalo */
 const REFRESH_MS = 60 * 1000
+
+/** fora do app por mais que isso: ao voltar, começa do zero na localização atual */
+const SESSION_GAP_MS = 30 * 60 * 1000
+const LAST_SEEN_KEY = 'climinha:last-seen'
+
+/**
+ * Chamado antes do primeiro render: se a pessoa ficou um tempo fora, esquece as
+ * cidades adicionadas e a última localização — o app volta a abrir onde ela está.
+ */
+export function resetIfAway() {
+  const last = read<number>(LAST_SEEN_KEY, 0)
+  if (Date.now() - last > SESSION_GAP_MS) {
+    try {
+      localStorage.removeItem(PLACES_KEY)
+      localStorage.removeItem(HERE_KEY)
+    } catch {
+      // armazenamento indisponível: nada a esquecer
+    }
+  }
+  markSeen()
+}
+
+/** marca que o app está em uso (chamado periodicamente e ao sair) */
+export function markSeen() {
+  write(LAST_SEEN_KEY, Date.now())
+}
 
 export function readHere(): Place | null {
   return read<Place | null>(HERE_KEY, null)
@@ -20,14 +45,6 @@ export function writeHere(place: Place | null) {
   write(HERE_KEY, place)
 }
 
-/** true se já pedimos a localização neste aparelho alguma vez */
-export function locationAsked(): boolean {
-  return read<boolean>(ASKED_KEY, false)
-}
-
-export function markLocationAsked() {
-  write(ASKED_KEY, true)
-}
 
 function read<T>(key: string, fallback: T): T {
   try {
