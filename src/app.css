@@ -9,11 +9,13 @@
 }
 
 html {
+  /* declara que o site já é escuro/claro por conta própria: impede o "modo escuro"
+     forçado de navegadores Android (Samsung Internet, Chrome) de escurecer tudo */
+  color-scheme: dark light;
   scrollbar-width: none;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
   background: var(--sky-top);
-  color-scheme: dark;
   --precip: #8fd0ff;
   --track: rgba(0, 10, 30, 0.22);
   --hover: rgba(255, 255, 255, 0.12);
@@ -22,7 +24,7 @@ html {
 }
 
 html[data-scheme='dark-on-light'] {
-  color-scheme: light;
+  color-scheme: light dark;
   --precip: #1d64b8;
   --track: rgba(20, 30, 45, 0.12);
   --hover: rgba(20, 30, 45, 0.06);
@@ -355,9 +357,6 @@ button {
 }
 
 .card {
-  transition:
-    background-color var(--motion-weather-transition) var(--ease-weather),
-    border-color var(--motion-weather-transition) var(--ease-weather);
   min-width: 0;
   padding: var(--space-3) var(--space-4) var(--space-4);
   border-radius: var(--radius-card);
@@ -1289,6 +1288,8 @@ button {
 
 /* a página é arrastável para os lados (troca de cidade); o scroll vertical continua nativo */
 .page {
+  /* camada própria: arrastar para o lado só move a camada, sem repintar */
+  will-change: transform;
   touch-action: pan-y;
   -webkit-user-select: none;
   user-select: none;

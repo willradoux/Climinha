@@ -298,8 +298,12 @@ export function Climinha({
   const totalLean = useTransform(() => leanSource.get() + idleLean.get())
   const eyeShift = useTransform(totalLean, eyeLeanOffset)
   const waveAmp = state.heavy ? 1.3 : 2.1
+  const lastFluid = useRef(0)
   useAnimationFrame((ms) => {
     if (!live || !fluid) return
+    // ondulação lenta: ~30 fps bastam e economizam metade das repinturas (celulares)
+    if (ms - lastFluid.current < 32) return
+    lastFluid.current = ms
     const t = ms / 1000
     // balanço lento mesmo parado: nuvem nunca fica rígida
     idleLean.set(Math.sin(t * 0.55) * 0.12)

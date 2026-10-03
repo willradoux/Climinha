@@ -80,17 +80,6 @@ npm run preview   # serve o build localmente
 npm run lint      # oxlint
 ```
 
-### Simular um clima
-
-Para ver qualquer ambiente sem esperar o tempo mudar:
-
-```
-http://localhost:5173/?weather=storm
-http://localhost:5173/?weather=rain&night=1
-```
-
-Valores: `sunny`, `clear`, `partly`, `cloudy`, `fog`, `rain`, `heavyRain`, `storm`. Para forçar a temperatura, use `&temp=37` (calor) ou `&temp=2` (muito frio). Com `?debug`, o menu de ajustes ganha um seletor de clima.
-
 ## Deploy
 
 O projeto é um site estático. Na [Vercel](https://vercel.com), importe o repositório; o preset **Vite** é detectado automaticamente (build `npm run build`, saída `dist`). Não há variáveis de ambiente.

@@ -22,9 +22,10 @@ import { motionTokens } from './theme/motion'
 import { applyTheme, getTheme } from './theme/weatherThemes'
 import { conditionLabel } from './weather/format'
 import { liveForecast } from './weather/live'
+import { HERE_ID, locateUser, locationPermission, placeAt, timezonePlace, watchUser } from './weather/location'
 import { precipitationOutlook } from './weather/outlook'
 import { applySimulation, simulationFromUrl, type Simulation } from './weather/simulate'
-import { useForecasts, usePlaces, useUnit } from './weather/store'
+import { locationAsked, markLocationAsked, readHere, useForecasts, usePlaces, useUnit, writeHere } from './weather/store'
 import type { Place } from './weather/types'
 import './app.css'
 
@@ -33,8 +34,13 @@ const LOADING_THEME = getTheme('clear', true)
 export default function App() {
   const reduced = useReducedMotion() ?? false
   const { places: saved, addPlace, removePlace } = usePlaces()
-  const [here, setHere] = useState<Place | null>(null)
-  const places = useMemo(() => (here ? [here, ...saved] : saved), [here, saved])
+  // a cidade do usuário: última localização conhecida; enquanto não há, a cidade do fuso
+  const [here, setHere] = useState<Place | null>(readHere)
+  const fallback = useMemo(timezonePlace, [])
+  const places = useMemo(
+    () => (here ? [here, ...saved] : saved.length ? saved : [fallback]),
+    [here, saved, fallback],
+  )
   const { entries, refresh } = useForecasts(places)
   const [unit, setUnit] = useUnit()
 
@@ -44,8 +50,11 @@ export default function App() {
   const place = places[safeIndex]
   const entry = entries[place.id]
 
-  const debug = useMemo(() => new URLSearchParams(window.location.search).has('debug'), [])
-  const [simulation, setSimulation] = useState<Simulation | null>(simulationFromUrl)
+  // simulador de clima (?weather=, ?temp=, ?debug): só no ambiente local, nunca no site publicado
+  const debug = useMemo(() => import.meta.env.DEV && new URLSearchParams(window.location.search).has('debug'), [])
+  const [simulation, setSimulation] = useState<Simulation | null>(() =>
+    import.meta.env.DEV ? simulationFromUrl() : null,
+  )
   // relógio: a cada 30 s a previsão é ajustada à hora real da cidade (dia/noite, "Agora", "Hoje")
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -297,35 +306,62 @@ export default function App() {
     return () => window.clearTimeout(t)
   }, [notice])
 
-  const locate = () => {
-    if (here) {
-      goTo(0)
-      return
+  // ao entrar: pede a localização (primeira visita) ou atualiza em silêncio (se já permitida)
+  const hereRef = useRef(here)
+  const applyHere = useCallback(
+    (place: Place, select: boolean) => {
+      hereRef.current = place
+      setHere(place)
+      writeHere(place)
+      void refresh(place) // coordenadas novas: busca o clima de onde a pessoa está agora
+      if (select) setIndex(0)
+    },
+    [refresh],
+  )
+  useEffect(() => {
+    let cancelled = false
+    let stopWatch = () => {}
+    void (async () => {
+      const permission = await locationPermission()
+      if (permission === 'denied') return
+      if (permission !== 'granted' && locationAsked() && readHere() === null) return
+      markLocationAsked()
+      try {
+        const place = await locateUser()
+        if (cancelled) return
+        applyHere(place, true)
+        // tempo real: se a pessoa se desloca, a cidade muda junto
+        stopWatch = watchUser(
+          () => hereRef.current,
+          (lat, lon) => {
+            void placeAt(lat, lon).then((p) => {
+              if (!cancelled) applyHere(p, false)
+            })
+          },
+        )
+      } catch {
+        // negada ou indisponível: fica a cidade do fuso (ou a última conhecida)
+      }
+    })()
+    return () => {
+      cancelled = true
+      stopWatch()
     }
-    if (!('geolocation' in navigator)) {
-      setNotice('Localização indisponível neste navegador.')
-      return
-    }
+  }, [applyHere])
+
+  // botão de localização: busca de novo e vai para a cidade do usuário
+  const locate = async () => {
     setLocating(true)
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false)
-        setHere({
-          id: 'here',
-          name: 'Minha localização',
-          region: 'Agora',
-          latitude: Math.round(pos.coords.latitude * 1000) / 1000,
-          longitude: Math.round(pos.coords.longitude * 1000) / 1000,
-        })
-        setDirection(-1)
-        setIndex(0)
-      },
-      () => {
-        setLocating(false)
-        setNotice('Não consegui acessar sua localização.')
-      },
-      { timeout: 10000, maximumAge: 10 * 60 * 1000 },
-    )
+    try {
+      const place = await locateUser()
+      setDirection(-1)
+      applyHere(place, true)
+      window.scrollTo({ top: 0 })
+    } catch {
+      setNotice('Não consegui acessar sua localização.')
+    } finally {
+      setLocating(false)
+    }
   }
 
   const [listOpen, setListOpen] = useState(false)
@@ -479,8 +515,10 @@ export default function App() {
         onSelect={selectPlace}
         onAdd={addPlace}
         onRemove={(id) => {
-          if (id === 'here') setHere(null)
-          else removePlace(id)
+          if (id === HERE_ID) {
+            setHere(null)
+            writeHere(null)
+          } else removePlace(id)
           setIndex(0)
         }}
       />

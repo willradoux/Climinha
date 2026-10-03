@@ -2,18 +2,32 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchForecast } from './openMeteo'
 import type { Forecast, Place } from './types'
 
-export const DEFAULT_PLACES: Place[] = [
-  { id: 'salvador', name: 'Salvador', region: 'Bahia, Brasil', latitude: -12.9711, longitude: -38.5108 },
-  { id: 'sao-paulo', name: 'São Paulo', region: 'São Paulo, Brasil', latitude: -23.5505, longitude: -46.6333 },
-  { id: 'curitiba', name: 'Curitiba', region: 'Paraná, Brasil', latitude: -25.4284, longitude: -49.2733 },
-]
-
-const PLACES_KEY = 'climinha:places'
+// v2: sem cidades padrão (a primeira cidade é a do usuário) e Celsius para todos
+const PLACES_KEY = 'climinha:places:v2'
+const HERE_KEY = 'climinha:here'
+const ASKED_KEY = 'climinha:location-asked'
 const CACHE_KEY = 'climinha:forecasts'
-const UNIT_KEY = 'climinha:unit'
+const UNIT_KEY = 'climinha:unit:v2'
 const STALE_MS = 10 * 60 * 1000
 /** com o app aberto, procura dados novos neste intervalo */
 const REFRESH_MS = 60 * 1000
+
+export function readHere(): Place | null {
+  return read<Place | null>(HERE_KEY, null)
+}
+
+export function writeHere(place: Place | null) {
+  write(HERE_KEY, place)
+}
+
+/** true se já pedimos a localização neste aparelho alguma vez */
+export function locationAsked(): boolean {
+  return read<boolean>(ASKED_KEY, false)
+}
+
+export function markLocationAsked() {
+  write(ASKED_KEY, true)
+}
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -33,10 +47,8 @@ function write(key: string, value: unknown) {
 }
 
 export function usePlaces() {
-  const [places, setPlaces] = useState<Place[]>(() => {
-    const saved = read<Place[]>(PLACES_KEY, [])
-    return saved.length ? saved : DEFAULT_PLACES
-  })
+  // só as cidades que o usuário adicionou; a cidade dele vem da localização
+  const [places, setPlaces] = useState<Place[]>(() => read<Place[]>(PLACES_KEY, []))
 
   useEffect(() => write(PLACES_KEY, places), [places])
 
@@ -45,7 +57,7 @@ export function usePlaces() {
   }, [])
 
   const removePlace = useCallback((id: string) => {
-    setPlaces((list) => (list.length > 1 ? list.filter((p) => p.id !== id) : list))
+    setPlaces((list) => list.filter((p) => p.id !== id))
   }, [])
 
   return { places, addPlace, removePlace }
