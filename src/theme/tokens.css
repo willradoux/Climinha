@@ -47,9 +47,11 @@
   --radius-pill: 999px;
 
   /* Typography */
-  /* tipografia própria: Fredoka (arredondada, para números e títulos) + Nunito (texto) */
-  --font-system: 'Nunito Variable', 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Fredoka Variable', 'Fredoka', 'Nunito Variable', system-ui, sans-serif;
+  /* fonte do sistema em tudo (estilo Apple); a Fredoka arredondada é a marca do
+     Climinha e aparece só na cidade e na temperatura */
+  --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI Variable Display', 'Segoe UI', system-ui, Roboto, sans-serif;
+  --font-brand: 'Fredoka Variable', 'Fredoka', system-ui, sans-serif;
 
   /* base escura das superfícies (lista de cidades) */
   --ink: #131925;

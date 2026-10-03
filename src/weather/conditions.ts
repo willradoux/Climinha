@@ -67,10 +67,10 @@ export function isWet(kind: WeatherKind) {
 }
 
 export function uvCategory(uv: number): { label: string; advice: string } {
-  if (uv < 3) return { label: 'Baixo', advice: 'Sem proteção necessária.' }
-  if (uv < 6) return { label: 'Moderado', advice: 'Protetor se ficar no sol.' }
-  if (uv < 8) return { label: 'Alto', advice: 'Use proteção até o fim da tarde.' }
-  if (uv < 11) return { label: 'Muito alto', advice: 'Evite o sol do meio-dia.' }
+  if (uv < 3) return { label: 'Baixo', advice: 'Sem protetor.' }
+  if (uv < 6) return { label: 'Moderado', advice: 'Protetor no sol.' }
+  if (uv < 8) return { label: 'Alto', advice: 'Use protetor.' }
+  if (uv < 11) return { label: 'Muito alto', advice: 'Evite o meio-dia.' }
   return { label: 'Extremo', advice: 'Fique na sombra.' }
 }
 

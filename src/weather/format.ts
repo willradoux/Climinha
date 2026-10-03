@@ -37,8 +37,8 @@ export function hourlySummary(hours: HourPoint[]): string | null {
   const wetIdx = next.findIndex((h) => h.precipProbability >= 50)
   if (wetIdx === 0) {
     const dryIdx = next.findIndex((h, i) => i > 0 && h.precipProbability < 30)
-    return dryIdx > 0 ? `Chuva deve diminuir por volta das ${hourLabel(next[dryIdx].time)}.` : 'Chuva ao longo das próximas horas.'
+    return dryIdx > 0 ? `Chuva até as ${hourLabel(next[dryIdx].time)}.` : 'Chuva nas próximas horas.'
   }
-  if (wetIdx > 0) return `Chuva provável a partir das ${hourLabel(next[wetIdx].time)}.`
+  if (wetIdx > 0) return `Chuva a partir das ${hourLabel(next[wetIdx].time)}.`
   return null
 }

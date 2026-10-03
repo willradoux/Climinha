@@ -17,9 +17,9 @@ export function precipitationOutlook(forecast: Forecast): PrecipitationOutlook |
     const stop = steps.findIndex((s) => s.precipitation < RAIN_THRESHOLD)
     return {
       steps,
-      text: stop > 0 ? `Chuva deve parar em aproximadamente ${stop * 15} min.` : 'Chuva nas próximas 3 horas.',
+      text: stop > 0 ? `Chuva para em ~${stop * 15} min.` : 'Chuva nas próximas 3 h.',
     }
   }
   const start = steps.findIndex((s) => s.precipitation >= RAIN_THRESHOLD)
-  return { steps, text: `Chuva começando em aproximadamente ${start * 15} min.` }
+  return { steps, text: `Chuva em ~${start * 15} min.` }
 }

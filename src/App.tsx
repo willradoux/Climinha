@@ -420,6 +420,7 @@ export default function App() {
       direction={direction}
       error={noData}
       onRetry={() => void refresh(place)}
+      away={orbit && visit !== null}
     />
   )
 

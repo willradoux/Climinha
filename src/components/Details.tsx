@@ -32,10 +32,10 @@ export function detailCards({ forecast, unit, order, reveal }: Props & { reveal:
   const feelsDiff = c.apparent - c.temperature
   const feelsText =
     Math.abs(feelsDiff) <= 1.5
-      ? 'Parecido com a temperatura real.'
+      ? 'Igual à temperatura real.'
       : feelsDiff > 0
-        ? 'A umidade faz parecer mais quente.'
-        : 'O vento faz parecer mais frio.'
+        ? 'Parece mais quente.'
+        : 'Parece mais frio.'
 
   return {
     uv: (
@@ -64,7 +64,7 @@ export function detailCards({ forecast, unit, order, reveal }: Props & { reveal:
               <span className="detail__unit">km/h</span>
             </p>
             <p className="detail__label">Vento {compassLabel(c.windDirection)}</p>
-            <p className="detail__note">Rajadas de até {Math.round(c.windGusts)} km/h.</p>
+            <p className="detail__note">Rajadas de {Math.round(c.windGusts)} km/h.</p>
           </div>
           <Compass direction={c.windDirection} />
         </div>
@@ -74,7 +74,7 @@ export function detailCards({ forecast, unit, order, reveal }: Props & { reveal:
       <Card key="humidity" title="Umidade" icon="drop" order={order + 3} reveal={reveal} lag={0}>
         <p className="detail__value">{Math.round(c.humidity)}%</p>
         <p className="detail__spacer" />
-        <p className="detail__note">Ponto de orvalho de {toUnit(c.dewPoint, unit)}° agora.</p>
+        <p className="detail__note">Orvalho a {toUnit(c.dewPoint, unit)}°.</p>
       </Card>
     ),
     precip: (
@@ -86,9 +86,7 @@ export function detailCards({ forecast, unit, order, reveal }: Props & { reveal:
         <p className="detail__label">Hoje</p>
         <p className="detail__spacer" />
         <p className="detail__note">
-          {tomorrow && tomorrow.precipSum >= 0.5
-            ? `${formatMm(tomorrow.precipSum)} mm previstos amanhã.`
-            : 'Sem chuva relevante prevista amanhã.'}
+          {tomorrow && tomorrow.precipSum >= 0.5 ? `Amanhã: ${formatMm(tomorrow.precipSum)} mm.` : 'Amanhã: sem chuva.'}
         </p>
       </Card>
     ),
