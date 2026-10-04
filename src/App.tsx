@@ -6,7 +6,7 @@ import {
   useReducedMotion,
   useTransform,
 } from 'motion/react'
-import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CliminhaPhase } from './climinha/Climinha'
 import { NEUTRAL_STATE, climinhaFor, type Mood } from './climinha/states'
 import { CitiesSheet } from './components/CitiesSheet'
@@ -14,10 +14,7 @@ import { DetailGrid } from './components/Details'
 import { FloatingNav } from './components/FloatingNav'
 import { DailyCard, HourlyCard, PrecipitationCard } from './components/Forecasts'
 import { Hero, type HeroData } from './components/Hero'
-import { OrbitStage } from './components/Orbit'
-import { useMischief } from './climinha/useMischief'
 import { Splash, SPLASH_MIN_MS } from './components/Splash'
-import { Tutorial } from './components/Tutorial'
 import { TravelingCliminha } from './components/TravelingCliminha'
 import { FirstRunContext } from './components/firstRun'
 import { Environment } from './environment/Environment'
@@ -382,41 +379,11 @@ export default function App() {
     }
   }
 
-  // teste no computador: layout em órbita (o celular segue igual)
-  const orbit = useMediaQuery('(min-width: 1100px) and (min-height: 640px)')
-  // computador: pegar e jogar o Climinha — ele ri, depois fica bravo e come cards
-  const mischief = useMischief(orbit)
-  const [awayThrown, setAwayThrown] = useState(false)
-
-  // tutorial (computador, primeira visita): ensina a pegar e jogar o Climinha
-  const [tutorialDone, setTutorialDone] = useState(() => {
-    try {
-      return localStorage.getItem('climinha:tutorial') === 'done'
-    } catch {
-      return false
-    }
-  })
-  const finishTutorial = useCallback(() => {
-    setTutorialDone(true)
-    try {
-      localStorage.setItem('climinha:tutorial', 'done')
-    } catch {
-      // sem armazenamento: aparece de novo na próxima visita
-    }
-  }, [])
-
   const [listOpen, setListOpen] = useState(false)
   const anchorRef = useRef<HTMLDivElement>(null)
   const splashCharacterRef = useRef<HTMLDivElement>(null)
   const [travelerReady, setTravelerReady] = useState(false)
   const onTravelerReady = useCallback(() => setTravelerReady(true), [])
-  const [tutorialReady, setTutorialReady] = useState(false)
-  useEffect(() => {
-    if (splash || !travelerReady) return
-    // depois de ele pousar e perceber o clima
-    const t = window.setTimeout(() => setTutorialReady(true), 2200)
-    return () => window.clearTimeout(t)
-  }, [splash, travelerReady])
   const [searchFirst, setSearchFirst] = useState(false)
 
   const selectPlace = (p: Place) => {
@@ -432,27 +399,12 @@ export default function App() {
   const outlook = forecast ? precipitationOutlook(forecast) : null
   const staleError = !!forecast && entry?.status === 'error'
 
-  const hero = (
-    <Hero
-      place={place}
-      data={heroData}
-      unit={unit}
-      anchorRef={anchorRef}
-      revealed={!splash}
-      direction={direction}
-      error={noData}
-      onRetry={() => void refresh(place)}
-      away={orbit && (mischief.visit !== null || awayThrown)}
-    />
-  )
-
   return (
     <FirstRunContext.Provider value={firstRun}>
       <Environment theme={theme} onLightning={() => react('surprised', 650)} />
 
       <motion.main
         className="page"
-        data-orbit={orbit || undefined}
         data-swipe={canSwipe || undefined}
         style={{ x: swipeX, opacity: pageOpacity }}
         onPointerDown={onPointerDown}
@@ -461,19 +413,16 @@ export default function App() {
         onPointerCancel={onPointerUp}
         onClickCapture={onClickCapture}
       >
-        {/* computador: Climinha no centro, detalhes em órbita; celular: hero simples */}
-        {orbit && forecast ? (
-          <OrbitStage
-            key={`orbit-${place.id}`}
-            forecast={forecast}
-            unit={unit}
-            hero={hero}
-            eaten={mischief.eaten}
-            eating={mischief.eating}
-          />
-        ) : (
-          hero
-        )}
+        <Hero
+          place={place}
+          data={heroData}
+          unit={unit}
+          anchorRef={anchorRef}
+          revealed={!splash}
+          direction={direction}
+          error={noData}
+          onRetry={() => void refresh(place)}
+        />
 
         {staleError && (
           <motion.button
@@ -492,7 +441,6 @@ export default function App() {
         <motion.div
           key={place.id + (forecast ? '' : '-empty')}
           className="content"
-          data-orbit={orbit || undefined}
           initial={false}
           animate={splash ? { opacity: 0, y: 28 } : { opacity: 1, y: 0 }}
           transition={splash || reduced ? { duration: 0 } : { ...motionTokens.system.page, delay: 0.45 }}
@@ -507,7 +455,7 @@ export default function App() {
                       {outlook && <PrecipitationCard outlook={outlook} order={1} />}
                       <HourlyCard forecast={forecast} unit={unit} order={2} />
                     </div>
-                    {!orbit && <DetailGrid forecast={forecast} unit={unit} order={3} />}
+                    <DetailGrid forecast={forecast} unit={unit} order={3} />
                   </>
                 )}
               </>
@@ -539,30 +487,17 @@ export default function App() {
           debug,
           simulation,
           onSimulate: setSimulation,
-          onTutorial: orbit ? () => setTutorialDone(false) : undefined,
         }}
       />
-
-      <Tutorial open={orbit && tutorialReady && !tutorialDone && !listOpen} anchorRef={anchorRef} onDone={finishTutorial} />
 
       {!splash && (
         <TravelingCliminha
           anchorRef={anchorRef}
           state={climinha}
           phase={phase}
-          moodOverride={mischief.mood ?? moodOverride}
-          layoutKey={`${place.id}-${forecast ? 1 : 0}-${noData ? 1 : 0}-${orbit ? 'orbita' : 'lista'}`}
+          moodOverride={moodOverride}
+          layoutKey={`${place.id}-${forecast ? 1 : 0}-${noData ? 1 : 0}`}
           onReady={onTravelerReady}
-          visit={orbit ? mischief.visit : null}
-          fury={mischief.fury}
-          throwable={orbit}
-          onGrab={() => {
-            mischief.grab()
-            if (!tutorialDone) finishTutorial()
-          }}
-          onThrow={mischief.thrown}
-          onSettle={mischief.settled}
-          onAway={setAwayThrown}
           swipeX={swipeX}
           fromRef={splashCharacterRef}
         />
@@ -620,18 +555,5 @@ function SkeletonCards() {
         </div>
       </div>
     </div>
-  )
-}
-
-/** true enquanto a media query casar (reage a redimensionar a janela) */
-function useMediaQuery(query: string) {
-  return useSyncExternalStore(
-    (onChange) => {
-      const mq = window.matchMedia(query)
-      mq.addEventListener('change', onChange)
-      return () => mq.removeEventListener('change', onChange)
-    },
-    () => window.matchMedia(query).matches,
-    () => false,
   )
 }

@@ -1,7 +1,6 @@
 import {
   animate,
   motion,
-  useAnimationControls,
   useMotionValue,
   useReducedMotion,
   useScroll,
@@ -21,8 +20,6 @@ import { motionTokens } from '../theme/motion'
  *  - rolando: se solta e pousa em cima da barra de navegação, centralizado
  *  - arrastando entre cidades: fica centralizado, acompanha o gesto só de leve e
  *    inclina o corpo com a inércia (a tela é que vai para o lado)
- *  - computador: dá para pegar, arrastar e jogar ele longe (física de nuvem:
- *    freia no ar e quica nas bordas da tela); depois ele volta para o lugar
  * A velocidade do scroll inclina e estica o corpo; molas dão o atraso de nuvem.
  */
 
@@ -53,18 +50,6 @@ interface Props {
   fromRef?: RefObject<HTMLDivElement | null>
   /** deslocamento do arraste entre cidades */
   swipeX?: MotionValue<number>
-  /** computador: card que ele está visitando (null = no centro) */
-  visit?: string | null
-  /** 0…1: raiva */
-  fury?: number
-  /** computador: dá para pegar, arrastar e jogar */
-  throwable?: boolean
-  onGrab?: () => void
-  onThrow?: () => void
-  /** parou de voar depois de um arremesso */
-  onSettle?: () => void
-  /** saiu do lugar / voltou (a sombra espera no centro) */
-  onAway?: (away: boolean) => void
 }
 
 export function TravelingCliminha({
@@ -76,13 +61,6 @@ export function TravelingCliminha({
   onReady,
   fromRef,
   swipeX,
-  visit = null,
-  fury = 0,
-  throwable = false,
-  onGrab,
-  onThrow,
-  onSettle,
-  onAway,
 }: Props) {
   const reduced = useReducedMotion() ?? false
   const { scrollY } = useScroll()
@@ -150,20 +128,9 @@ export function TravelingCliminha({
       const e = p * p * (3 - 2 * p) // smoothstep
       const hx = geo.anchorX
       const hy = geo.anchorY - s
-      let tx = hx + (dx - hx) * e
-      let ty = hy + (dy - hy) * e
-      let ts = (heroW + (dw - heroW) * e) / heroW
-
-      // visitando um card (só no topo da página): voa até o lado interno do card, menor
-      const card = visit && e < 0.15 ? document.querySelector<HTMLElement>(`[data-orbit-card="${visit}"]`) : null
-      if (card) {
-        const r = card.getBoundingClientRect()
-        const vwid = Math.min(heroW * 0.6, 150)
-        const vhgt = vwid * RATIO
-        tx = card.dataset.side === 'left' ? r.right + 10 : r.left - vwid - 10
-        ty = r.top + r.height / 2 - vhgt * 0.55
-        ts = vwid / heroW
-      }
+      const tx = hx + (dx - hx) * e
+      const ty = hy + (dy - hy) * e
+      const ts = (heroW + (dw - heroW) * e) / heroW
 
       rawX.set(tx)
       rawY.set(ty)
@@ -200,142 +167,12 @@ export function TravelingCliminha({
 
     place(window.scrollY, true)
     return scrollY.on('change', (s) => place(s, false))
-  }, [geo, scrollY, reduced, rawX, rawY, rawScale, progress, x, y, scale, fromRef, visit])
+  }, [geo, scrollY, reduced, rawX, rawY, rawScale, progress, x, y, scale, fromRef])
 
   // --- arraste: acompanha só de leve; a velocidade do gesto vira inércia no corpo ---
   const screenX = useTransform(() => x.get() + swipe.get() * SWIPE_FOLLOW)
-
-  // --- pegar, arrastar e jogar ------------------------------------------------
-  // free = 1: posição livre (fx, fy); ret 0→1 mistura de volta para a âncora
-  const free = useMotionValue(0)
-  const ret = useMotionValue(0)
-  const fx = useMotionValue(0)
-  const fy = useMotionValue(0)
-  const outX = useTransform(() => (free.get() ? fx.get() + (screenX.get() - fx.get()) * ret.get() : screenX.get()))
-  const outY = useTransform(() => (free.get() ? fy.get() + (y.get() - fy.get()) * ret.get() : y.get()))
-  const [grip, setGrip] = useState<'none' | 'held' | 'flying'>('none')
-  const dragState = useRef<{ offX: number; offY: number; samples: [number, number, number][]; moved: boolean } | null>(null)
-  const physicsRaf = useRef(0)
-  const returning = useRef<{ stop: () => void } | null>(null)
-  const impact = useAnimationControls()
-
-  const returnHome = () => {
-    returning.current?.stop()
-    ret.set(0)
-    returning.current = animate(ret, 1, {
-      duration: 0.9,
-      ease: [0.3, 0, 0.2, 1],
-      onComplete: () => {
-        free.set(0)
-        ret.set(0)
-        onAway?.(false)
-      },
-    })
-  }
-
-  const fling = (startVx: number, startVy: number) => {
-    let vx = startVx
-    let vy = startVy
-    const w = (geo?.anchorW ?? 200) * scale.get()
-    const h = w * RATIO
-    let last = performance.now()
-    const step = (now: number) => {
-      const dt = Math.min(0.032, (now - last) / 1000)
-      last = now
-      // o ar freia aos poucos: nuvem não cai, desliza e para
-      const airDrag = Math.exp(-1.5 * dt)
-      vx *= airDrag
-      vy *= airDrag
-      let nx = fx.get() + vx * dt
-      let ny = fy.get() + vy * dt
-      const maxX = window.innerWidth - w * 0.9
-      const maxY = window.innerHeight - h
-      if (nx < -w * 0.1 || nx > maxX) {
-        nx = Math.max(-w * 0.1, Math.min(maxX, nx))
-        vx = -vx * 0.6
-        void impact.start({ scaleX: [1, 0.8, 1.08, 1], scaleY: [1, 1.18, 0.95, 1], transition: { duration: 0.45 } })
-      }
-      if (ny < 0 || ny > maxY) {
-        ny = Math.max(0, Math.min(maxY, ny))
-        vy = -vy * 0.6
-        void impact.start({ scaleX: [1, 1.2, 0.94, 1], scaleY: [1, 0.8, 1.06, 1], transition: { duration: 0.45 } })
-      }
-      fx.set(nx)
-      fy.set(ny)
-      if (Math.hypot(vx, vy) < 45) {
-        setGrip('none')
-        window.setTimeout(() => {
-          onSettle?.()
-          returnHome()
-        }, 450)
-        return
-      }
-      physicsRaf.current = requestAnimationFrame(step)
-    }
-    physicsRaf.current = requestAnimationFrame(step)
-  }
-
-  useEffect(() => () => cancelAnimationFrame(physicsRaf.current), [])
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    if (!throwable || reduced || e.button !== 0) return
-    cancelAnimationFrame(physicsRaf.current)
-    returning.current?.stop()
-    fx.set(outX.get())
-    fy.set(outY.get())
-    ret.set(0)
-    free.set(1)
-    dragState.current = {
-      offX: e.clientX - fx.get(),
-      offY: e.clientY - fy.get(),
-      samples: [[e.clientX, e.clientY, e.timeStamp]],
-      moved: false,
-    }
-  }
-  const onPointerMove = (e: React.PointerEvent) => {
-    const d = dragState.current
-    if (!d) return
-    const [sx, sy] = d.samples[0]
-    if (!d.moved && Math.hypot(e.clientX - sx, e.clientY - sy) > 6) {
-      // só vira arraste depois de alguns pixels: um toque simples continua sendo toque
-      d.moved = true
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-      setGrip('held')
-      onAway?.(true)
-      onGrab?.()
-    }
-    if (!d.moved) return
-    fx.set(e.clientX - d.offX)
-    fy.set(e.clientY - d.offY)
-    d.samples.push([e.clientX, e.clientY, e.timeStamp])
-    if (d.samples.length > 6) d.samples.shift()
-  }
-  const onPointerUp = (e: React.PointerEvent) => {
-    const d = dragState.current
-    dragState.current = null
-    if (!d) return
-    if (!d.moved) {
-      free.set(0)
-      return
-    }
-    // velocidade do último trecho do gesto (o começo do arraste não conta)
-    const recent = d.samples.filter(([, , t]) => e.timeStamp - t <= 140)
-    const [x0, y0, t0] = recent.length >= 2 ? recent[0] : d.samples[Math.max(0, d.samples.length - 2)]
-    const dt = Math.max(16, e.timeStamp - t0) / 1000
-    const vx = (e.clientX - x0) / dt
-    const vy = (e.clientY - y0) / dt
-    if (Math.hypot(vx, vy) > 300) {
-      setGrip('flying')
-      onThrow?.()
-      fling(vx, vy)
-    } else {
-      setGrip('none')
-      returnHome()
-    }
-  }
-
-  const lateralVelocity = useVelocity(outX)
-  const leanRaw = useTransform(lateralVelocity, [-1800, 0, 1800], [-1, 0, 1], { clamp: true })
+  const swipeVelocity = useVelocity(swipe)
+  const leanRaw = useTransform(swipeVelocity, [-2200, 0, 2200], [-1, 0, 1], { clamp: true })
   // mola pouco amortecida: depois de parar ele ainda balança um pouco, como gelatina
   const lean = useSpring(leanRaw, motionTokens.climinha.jelly)
 
@@ -360,27 +197,16 @@ export function TravelingCliminha({
     return () => window.removeEventListener('pointermove', onMove)
   }, [reduced, pointerX, pointerY])
 
-  const visitSide = visit ? document.querySelector<HTMLElement>(`[data-orbit-card="${visit}"]`)?.dataset.side : null
-  const visitLookX = visitSide === 'left' ? -0.9 : visitSide === 'right' ? 0.9 : 0
-  const visitLookY = 0.1
-  const visiting = useSpring(visit ? 1 : 0, { stiffness: 120, damping: 20 })
-  useEffect(() => {
-    visiting.set(visit ? 1 : 0)
-  }, [visit, visiting])
   const lookX = useTransform(() => {
     const e = progress.get()
     // arrastando, olha para onde a tela vai
     const drag = Math.max(-1, Math.min(1, -swipe.get() / 300))
-    const base = pointerX.get() * (1 - e) * 0.6 + drag * 0.8 + pointerX.get() * 0.4
-    const v = visiting.get()
-    return base * (1 - v) + visitLookX * v
+    return pointerX.get() * (1 - e) * 0.6 + drag * 0.8 + pointerX.get() * 0.4
   })
   const lookY = useTransform(() => {
     const e = progress.get()
     const dir = Math.max(-0.4, Math.min(0.4, velocity.get() / 3000))
-    const base = pointerY.get() * (1 - e) + (-0.45 + dir) * e
-    const v = visiting.get()
-    return base * (1 - v) + visitLookY * v
+    return pointerY.get() * (1 - e) + (-0.45 + dir) * e
   })
 
   const ready = !!geo
@@ -394,19 +220,9 @@ export function TravelingCliminha({
     <motion.div
       className="traveler"
       // pousando: por cima do céu da intro (que ainda está sumindo); depois volta para baixo da barra
-      style={{ x: outX, y: outY, scale, width: geo.anchorW, originX: 0, originY: 0, zIndex: landing ? 101 : 15 }}
+      style={{ x: screenX, y, scale, width: geo.anchorW, originX: 0, originY: 0, zIndex: landing ? 101 : 15 }}
     >
-      <motion.div
-        className="traveler__grip"
-        data-throwable={(throwable && !reduced) || undefined}
-        data-held={grip === 'held' || undefined}
-        style={reduced ? undefined : { rotate, scaleY, scaleX, originY: 1 }}
-        animate={impact}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
+      <motion.div style={reduced ? undefined : { rotate, scaleY, scaleX, originY: 1 }}>
         <motion.div
           style={{ originY: 1 }}
           initial={false}
@@ -420,8 +236,7 @@ export function TravelingCliminha({
             size="100%"
             lookX={lookX}
             lookY={lookY}
-            moodOverride={grip === 'held' ? 'surprised' : grip === 'flying' ? (fury > 0 ? 'irritated' : 'happy') : moodOverride}
-            fury={fury}
+            moodOverride={moodOverride}
             lean={lean}
             perceive
             onTap={() => {}}

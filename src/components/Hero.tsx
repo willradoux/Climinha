@@ -23,13 +23,11 @@ interface Props {
   direction: number
   /** sem dados e sem conexão */
   error?: boolean
-  /** computador: o Climinha saiu para visitar um card — a sombra dele fica esperando */
-  away?: boolean
   onRetry?: () => void
 }
 
 /** Hero centralizado: cidade · temperatura · Climinha · condição · máx/mín. */
-export function Hero({ place, data, unit, anchorRef, revealed, direction, error, onRetry, away }: Props) {
+export function Hero({ place, data, unit, anchorRef, revealed, direction, error, onRetry }: Props) {
   const reduced = useReducedMotion() ?? false
   const { scrollY } = useScroll()
   // o texto do hero some com suavidade; o Climinha segue viagem
@@ -69,9 +67,7 @@ export function Hero({ place, data, unit, anchorRef, revealed, direction, error,
         </div>
       </motion.div>
 
-      <div className="hero__character" ref={anchorRef} aria-hidden="true">
-        <span className="hero__seat" data-away={away || undefined} />
-      </div>
+      <div className="hero__character" ref={anchorRef} aria-hidden="true" />
 
       <motion.div
         className="hero__readout"

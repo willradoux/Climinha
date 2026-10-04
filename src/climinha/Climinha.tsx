@@ -52,10 +52,6 @@ export interface CliminhaProps {
   fluid?: boolean
   /** chega neutro, olha para o céu e só então reage ao clima (e de novo a cada mudança) */
   perceive?: boolean
-  /** efeito pedido de fora (reação a um card): suor ou pingos */
-  effect?: 'sweat' | 'drip'
-  /** 0…1: raiva (quando jogam ele longe demais) — vermelho por dentro e tremendo */
-  fury?: number
   /** transição dos olhos (ex.: piscadinha lenta e suave da intro) */
   eyeTransition?: Transition
   onTap?: () => void
@@ -75,8 +71,6 @@ export function Climinha({
   fluid = true,
   perceive = false,
   eyeTransition,
-  effect,
-  fury = 0,
   onTap,
   className,
   style,
@@ -323,9 +317,7 @@ export function Climinha({
 
   const shiver = !live
     ? null
-    : fury >= 1
-      ? { x: [0, -1.6, 1.6, -1.4, 1.4, 0], duration: 0.32, repeatDelay: 0.25 }
-      : mood === 'scared'
+    : mood === 'scared'
       ? { x: [0, -1.2, 1.2, -1, 1, 0], duration: 0.45, repeatDelay: 1.6 }
       : state.temp === 'freezing'
         ? { x: [0, -1.5, 1.5, -1.3, 1.3, -1.1, 1.1, 0], duration: 0.5, repeatDelay: 0.12 }
@@ -379,11 +371,6 @@ export function Climinha({
           <stop offset="0" stopColor="#f2f8ff" />
           <stop offset="1" stopColor="#8dbcf2" />
         </radialGradient>
-        <radialGradient id={`${uid}-fury`} cx="0.5" cy="0.55" r="0.55">
-          <stop offset="0" stopColor="#ff5a4a" stopOpacity="0.9" />
-          <stop offset="0.6" stopColor="#ff3b30" stopOpacity="0.35" />
-          <stop offset="1" stopColor="#ff3b30" stopOpacity="0" />
-        </radialGradient>
         <radialGradient id={`${uid}-storm`} cx="0.5" cy="0.62" r="0.5">
           <stop offset="0" stopColor="#ffe27a" stopOpacity="0.95" />
           <stop offset="0.55" stopColor="#ffc93d" stopOpacity="0.35" />
@@ -430,19 +417,6 @@ export function Climinha({
           <path ref={setBodyRef(1)} d={BODY_PATH} fill={`url(#${uid}-body)`} />
           <path ref={setBodyRef(2)} d={BODY_PATH} fill={`url(#${uid}-warm)`} />
           <path ref={setBodyRef(3)} d={BODY_PATH} fill={`url(#${uid}-cool)`} />
-          {/* raiva: vermelho subindo por dentro do corpo */}
-          <g clipPath={`url(#${uid}-clip)`}>
-            <motion.ellipse
-              cx="122"
-              cy="92"
-              rx="104"
-              ry="62"
-              fill={`url(#${uid}-fury)`}
-              initial={false}
-              animate={{ opacity: fury * 0.75 }}
-              transition={{ duration: 0.6 }}
-            />
-          </g>
           {state.storm && (
             <g clipPath={`url(#${uid}-clip)`}>
               <motion.ellipse
@@ -472,14 +446,12 @@ export function Climinha({
           <Eye cx={EYE_LEFT.x} cy={EYE_LEFT.y} shape={leftEye} side="left" blink={blink} slow={slowEyes} transition={eyeTransition} x={eyeX} y={eyeY} />
           <Eye cx={EYE_RIGHT.x} cy={EYE_RIGHT.y} shape={rightEye} side="right" blink={blink} slow={slowEyes} transition={eyeTransition} x={eyeX} y={eyeY} />
           </motion.g>
-          {live && (state.temp === 'hot' || effect === 'sweat') && <Sweat fill={`url(#${uid}-drop)`} />}
+          {live && state.temp === 'hot' && <Sweat fill={`url(#${uid}-drop)`} />}
         </motion.g>
         </motion.g>
 
         {state.storm && <Zaps live={live} />}
-        {live && (state.drops > 0 || effect === 'drip') && (
-          <Drops count={state.drops === 2 ? 5 : 3} fill={`url(#${uid}-drop)`} />
-        )}
+        {live && state.drops > 0 && <Drops count={state.drops === 2 ? 5 : 3} fill={`url(#${uid}-drop)`} />}
       </motion.g>
     </svg>
   )
