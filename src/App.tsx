@@ -14,9 +14,10 @@ import { DetailGrid } from './components/Details'
 import { FloatingNav } from './components/FloatingNav'
 import { DailyCard, HourlyCard, PrecipitationCard } from './components/Forecasts'
 import { Hero, type HeroData } from './components/Hero'
-import { OrbitStage, reactionFor } from './components/Orbit'
-import type { DetailId } from './components/Details'
+import { OrbitStage } from './components/Orbit'
+import { useMischief } from './climinha/useMischief'
 import { Splash, SPLASH_MIN_MS } from './components/Splash'
+import { Tutorial } from './components/Tutorial'
 import { TravelingCliminha } from './components/TravelingCliminha'
 import { FirstRunContext } from './components/firstRun'
 import { Environment } from './environment/Environment'
@@ -383,18 +384,39 @@ export default function App() {
 
   // teste no computador: layout em órbita (o celular segue igual)
   const orbit = useMediaQuery('(min-width: 1100px) and (min-height: 640px)')
-  // card que o Climinha está visitando no computador (null = no centro)
-  const [visit, setVisit] = useState<DetailId | null>(null)
-  const visitReaction = useMemo(
-    () => (orbit && visit && forecast ? reactionFor(visit, forecast) : null),
-    [orbit, visit, forecast],
-  )
+  // computador: pegar e jogar o Climinha — ele ri, depois fica bravo e come cards
+  const mischief = useMischief(orbit)
+  const [awayThrown, setAwayThrown] = useState(false)
+
+  // tutorial (computador, primeira visita): ensina a pegar e jogar o Climinha
+  const [tutorialDone, setTutorialDone] = useState(() => {
+    try {
+      return localStorage.getItem('climinha:tutorial') === 'done'
+    } catch {
+      return false
+    }
+  })
+  const finishTutorial = useCallback(() => {
+    setTutorialDone(true)
+    try {
+      localStorage.setItem('climinha:tutorial', 'done')
+    } catch {
+      // sem armazenamento: aparece de novo na próxima visita
+    }
+  }, [])
 
   const [listOpen, setListOpen] = useState(false)
   const anchorRef = useRef<HTMLDivElement>(null)
   const splashCharacterRef = useRef<HTMLDivElement>(null)
   const [travelerReady, setTravelerReady] = useState(false)
   const onTravelerReady = useCallback(() => setTravelerReady(true), [])
+  const [tutorialReady, setTutorialReady] = useState(false)
+  useEffect(() => {
+    if (splash || !travelerReady) return
+    // depois de ele pousar e perceber o clima
+    const t = window.setTimeout(() => setTutorialReady(true), 2200)
+    return () => window.clearTimeout(t)
+  }, [splash, travelerReady])
   const [searchFirst, setSearchFirst] = useState(false)
 
   const selectPlace = (p: Place) => {
@@ -420,7 +442,7 @@ export default function App() {
       direction={direction}
       error={noData}
       onRetry={() => void refresh(place)}
-      away={orbit && visit !== null}
+      away={orbit && (mischief.visit !== null || awayThrown)}
     />
   )
 
@@ -446,8 +468,8 @@ export default function App() {
             forecast={forecast}
             unit={unit}
             hero={hero}
-            visit={visit}
-            onVisit={setVisit}
+            eaten={mischief.eaten}
+            eating={mischief.eating}
           />
         ) : (
           hero
@@ -517,19 +539,30 @@ export default function App() {
           debug,
           simulation,
           onSimulate: setSimulation,
+          onTutorial: orbit ? () => setTutorialDone(false) : undefined,
         }}
       />
+
+      <Tutorial open={orbit && tutorialReady && !tutorialDone && !listOpen} anchorRef={anchorRef} onDone={finishTutorial} />
 
       {!splash && (
         <TravelingCliminha
           anchorRef={anchorRef}
           state={climinha}
           phase={phase}
-          moodOverride={moodOverride}
+          moodOverride={mischief.mood ?? moodOverride}
           layoutKey={`${place.id}-${forecast ? 1 : 0}-${noData ? 1 : 0}-${orbit ? 'orbita' : 'lista'}`}
           onReady={onTravelerReady}
-          visit={orbit ? visit : null}
-          reaction={visitReaction}
+          visit={orbit ? mischief.visit : null}
+          fury={mischief.fury}
+          throwable={orbit}
+          onGrab={() => {
+            mischief.grab()
+            if (!tutorialDone) finishTutorial()
+          }}
+          onThrow={mischief.thrown}
+          onSettle={mischief.settled}
+          onAway={setAwayThrown}
           swipeX={swipeX}
           fromRef={splashCharacterRef}
         />

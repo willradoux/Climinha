@@ -1371,3 +1371,97 @@ button {
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: start;
 }
+
+/* ---------- pegar e jogar o Climinha (computador) ---------- */
+.traveler__grip[data-throwable] {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.traveler__grip[data-held] {
+  cursor: grabbing;
+}
+
+/* card comido: o lugar fica reservado (vazio) até ele devolver */
+.orbit__slot {
+  min-height: 150px;
+}
+
+/* ---------- tutorial ---------- */
+.tutorial {
+  position: fixed;
+  z-index: 30;
+  width: 264px;
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+}
+
+/* bico do balão apontando para o Climinha */
+.tutorial::after {
+  content: '';
+  position: absolute;
+  left: -7px;
+  top: 34px;
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  border-left: 0.5px solid rgba(255, 255, 255, 0.12);
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
+  transform: rotate(45deg);
+}
+
+.tutorial__title {
+  font-family: var(--font-brand);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.tutorial__text {
+  margin-top: var(--space-1);
+  font-size: var(--type-secondary);
+  color: var(--fg-2);
+}
+
+.tutorial__hint {
+  display: block;
+  width: 100%;
+  height: 44px;
+  margin-top: var(--space-2);
+  color: var(--fg);
+}
+
+.tutorial__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-3);
+}
+
+.tutorial__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.tutorial__dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-3);
+}
+
+.tutorial__dots span[data-on] {
+  background: var(--fg);
+}
+
+.tutorial__cta {
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.92);
+  color: #101622;
+  font-size: var(--type-secondary);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}

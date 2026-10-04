@@ -25,10 +25,12 @@ interface Props {
   debug: boolean
   simulation: Simulation | null
   onSimulate: (s: Simulation | null) => void
+  /** computador: rever o tutorial do Climinha */
+  onTutorial?: () => void
 }
 
 /** Ajustes: popover glass que abre para cima a partir da barra de navegação. */
-export function SettingsMenu({ unit, onUnitChange, onRefresh, debug, simulation, onSimulate }: Props) {
+export function SettingsMenu({ unit, onUnitChange, onRefresh, debug, simulation, onSimulate, onTutorial }: Props) {
   const [open, setOpen] = useState(false)
   const reduced = useReducedMotion()
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -105,6 +107,7 @@ export function SettingsMenu({ unit, onUnitChange, onRefresh, debug, simulation,
             <MenuItem icon="refresh" onSelect={choose(onRefresh)}>
               Atualizar
             </MenuItem>
+            {onTutorial && <MenuItem onSelect={choose(onTutorial)}>Ver tutorial do Climinha</MenuItem>}
             {debug && (
               <>
                 <div className="menu__separator" />

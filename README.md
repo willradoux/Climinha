@@ -45,6 +45,7 @@ Comportamentos:
 - **Percebe o clima:** chega neutro, olha para o céu e só então reage — fica cinza no nublado, chateado na chuva, com frio no inverno. Ao trocar de cidade, olha de novo.
 - **Corpo fluido:** o contorno ondula o tempo todo e balança com inércia quando ele se move.
 - **Acompanha a interface:** ao rolar, ele se solta do topo e pousa em cima da barra de navegação, centralizado. A velocidade do scroll inclina e estica o corpo. Ao arrastar entre cidades ele continua no centro e balança com a inércia do gesto.
+- **No computador, dá para jogar ele longe:** pegue o Climinha com o mouse, arraste e solte rápido — ele voa, freia no ar e quica nas bordas. Na primeira vez ele acha graça; na segunda fica irritado e vermelho; a partir da terceira, furioso, vai até os cards e come alguns. Depois de um tempo em paz, se acalma e devolve tudo. Na primeira visita, um tutorial dele explica a brincadeira.
 - **Sono:** à noite, um toque o acorda. Depois de 10 s sem interação ele fica com sono e as pálpebras descem devagar. Aos 20 s volta a dormir.
 
 ## Funcionalidades
