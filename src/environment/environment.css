@@ -223,7 +223,7 @@
   inset: 0;
   background-image: var(--paper-grain);
   background-size: 180px 180px;
-  /* mistura normal e bem sutil: mix-blend-mode custava ~8 fps no Android */
+  /* mistura normal: mix-blend-mode exige composição cara em GPUs móveis */
   opacity: 0.07;
 }
 

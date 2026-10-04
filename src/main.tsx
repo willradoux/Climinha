@@ -4,7 +4,7 @@ import './index.css'
 import App from './App.tsx'
 import { resetIfAway } from './weather/store'
 
-// voltou depois de um tempo? começa do zero, na localização atual da pessoa
+// Depois de um tempo fora, o app recomeça na localização atual da pessoa.
 resetIfAway()
 
 createRoot(document.getElementById('root')!).render(

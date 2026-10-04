@@ -44,8 +44,8 @@ function Sheet({ searchFirst, onClose, places, entries, unit, currentId, onSelec
   const sheetRef = useRef<HTMLDivElement>(null)
   const [height, setHeight] = useState(() => sheetHeight())
   const positions = { full: 0, medium: Math.round(height * 0.38), closed: height + 40 }
-  // busca: a janela já nasce aberta, com o campo visível — no iPhone o teclado só abre
-  // com foco dentro do toque, e focar um campo fora da tela fazia o Safari rolar tudo
+  // Busca: o sheet já abre na posição final, com o campo visível. No iOS o teclado só
+  // abre com foco dentro do gesto, e focar um campo fora da tela faz o Safari rolar a página.
   const y = useMotionValue(searchFirst ? positions.full : positions.closed)
   const backdrop = useTransform(y, [positions.closed, positions.medium], [0, 1])
   const [snap, setSnap] = useState<Snap>(searchFirst ? 'full' : 'medium')

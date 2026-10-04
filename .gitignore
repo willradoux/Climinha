@@ -23,9 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-# local — fora do repositório
-CLAUDE.md
-docs/design/
-docs/references/
-scripts/
-dist-test/

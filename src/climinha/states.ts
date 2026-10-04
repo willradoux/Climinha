@@ -52,7 +52,7 @@ export function tempFeelFor(celsius: number): TempFeel | undefined {
 }
 
 /**
- * A cor do corpo comunica o clima (decisão da folha v2):
+ * A cor do corpo comunica o clima:
  * céu limpo branco-frio → ensolarado azul vivo → nublado cinza-azulado →
  * chuva cinza médio → chuva forte grafite → tempestade quase preto.
  */

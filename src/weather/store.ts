@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchForecast } from './openMeteo'
 import type { Forecast, Place } from './types'
 
-// v2: sem cidades padrão (a primeira cidade é a do usuário) e Celsius para todos
+// Chaves versionadas: mudar o formato ou os padrões invalida o que estava salvo.
+// v2 não tem cidades padrão (a primeira cidade é a do usuário) e usa Celsius.
 const PLACES_KEY = 'climinha:places:v2'
 const HERE_KEY = 'climinha:here'
 const CACHE_KEY = 'climinha:forecasts'
