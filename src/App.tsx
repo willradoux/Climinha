@@ -6,10 +6,9 @@ import {
   useReducedMotion,
   useTransform,
 } from 'motion/react'
-import { startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, lazy, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CliminhaPhase } from './climinha/Climinha'
 import { NEUTRAL_STATE, climinhaFor, type Mood } from './climinha/states'
-import { CitiesSheet } from './components/CitiesSheet'
 import { DetailGrid } from './components/Details'
 import { FloatingNav } from './components/FloatingNav'
 import { DailyCard, HourlyCard, PrecipitationCard } from './components/Forecasts'
@@ -30,6 +29,9 @@ import type { Place } from './weather/types'
 import './app.css'
 
 const LOADING_THEME = getTheme('clear', true)
+
+// a lista de cidades (com busca) só é baixada quando abre pela primeira vez
+const CitiesSheet = lazy(() => import('./components/CitiesSheet').then((m) => ({ default: m.CitiesSheet })))
 
 /** simulador de clima: só no ambiente local (dev ou build de teste com VITE_SIMULATOR=1) */
 const SIMULATOR = import.meta.env.DEV || import.meta.env.VITE_SIMULATOR === '1'
@@ -380,6 +382,9 @@ export default function App() {
   }
 
   const [listOpen, setListOpen] = useState(false)
+  // depois de aberta uma vez, a lista fica montada (fecha com animação)
+  const [sheetUsed, setSheetUsed] = useState(false)
+  if (listOpen && !sheetUsed) setSheetUsed(true)
   const anchorRef = useRef<HTMLDivElement>(null)
   const splashCharacterRef = useRef<HTMLDivElement>(null)
   const [travelerReady, setTravelerReady] = useState(false)
@@ -520,24 +525,28 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <CitiesSheet
-        open={listOpen}
-        searchFirst={searchFirst}
-        onClose={() => setListOpen(false)}
-        places={places}
-        entries={entries}
-        unit={unit}
-        currentId={place.id}
-        onSelect={selectPlace}
-        onAdd={addPlace}
-        onRemove={(id) => {
-          if (id === HERE_ID) {
-            setHere(null)
-            writeHere(null)
-          } else removePlace(id)
-          setIndex(0)
-        }}
-      />
+      {sheetUsed && (
+        <Suspense fallback={null}>
+        <CitiesSheet
+          open={listOpen}
+          searchFirst={searchFirst}
+          onClose={() => setListOpen(false)}
+          places={places}
+          entries={entries}
+          unit={unit}
+          currentId={place.id}
+          onSelect={selectPlace}
+          onAdd={addPlace}
+          onRemove={(id) => {
+            if (id === HERE_ID) {
+              setHere(null)
+              writeHere(null)
+            } else removePlace(id)
+            setIndex(0)
+          }}
+        />
+        </Suspense>
+      )}
     </FirstRunContext.Provider>
   )
 }

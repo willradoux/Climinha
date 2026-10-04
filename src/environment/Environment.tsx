@@ -96,7 +96,7 @@ export const Environment = memo(function Environment({ theme, onLightning }: Pro
         className="env__sun"
         style={{ y: sunY }}
         initial={false}
-        animate={{ opacity: sunOpacity }}
+        animate={layer(sunOpacity)}
         transition={fade}
       >
         <div className="env__sun-glow" />
@@ -108,7 +108,7 @@ export const Environment = memo(function Environment({ theme, onLightning }: Pro
         />
       </motion.div>
 
-      <motion.div className="env__night" initial={false} animate={{ opacity: a.stars ? 1 : 0 }} transition={fade}>
+      <motion.div className="env__night" initial={false} animate={layer(a.stars ? 1 : 0)} transition={fade}>
         {STARS.map((s, i) => (
           <span
             key={i}
@@ -135,7 +135,7 @@ export const Environment = memo(function Environment({ theme, onLightning }: Pro
       <CloudLayer specs={FAR} visible={farCount} depth="far" y={farY} />
       <CloudLayer specs={MID} visible={midCount} depth="mid" y={midY} />
 
-      <motion.div className="env__fog" initial={false} animate={{ opacity: a.fog ? 1 : 0 }} transition={fade}>
+      <motion.div className="env__fog" initial={false} animate={layer(a.fog ? 1 : 0)} transition={fade}>
         <div className="env__fog-band env__fog-band--1" />
         <div className="env__fog-band env__fog-band--2" />
         <div className="env__fog-band env__fog-band--3" />
@@ -151,10 +151,18 @@ export const Environment = memo(function Environment({ theme, onLightning }: Pro
       {/* granulado de papel sobre o céu: estático, dá textura de ilustração impressa */}
       <div className="env__grain" />
 
-      <Lightning active={a.lightning && !reduced} onFlash={onLightning} />
+      {a.lightning && !reduced && <Lightning active onFlash={onLightning} />}
     </div>
   )
 })
+
+/**
+ * Opacidade de uma camada do céu. Ao chegar a zero ela fica `visibility: hidden`:
+ * o navegador deixa de compor a camada (e as animações dela) até ela voltar.
+ */
+function layer(opacity: number) {
+  return opacity > 0 ? { opacity, visibility: 'visible' as const } : { opacity: 0, transitionEnd: { visibility: 'hidden' as const } }
+}
 
 function CloudLayer({
   specs,
@@ -179,6 +187,8 @@ function CloudLayer({
               '--w': `max(${c.width}vw, ${Math.round(c.width * 5.2)}px)`,
               '--delay': c.delay,
               opacity: i < visible ? 1 : 0,
+              // fora do céu atual: para de animar e sai da composição depois de sumir
+              ...(i < visible ? null : { visibility: 'hidden', animationPlayState: 'paused' }),
             } as CSSProperties
           }
         >

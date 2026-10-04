@@ -137,8 +137,14 @@
   --duration: calc(var(--cloud-seconds) / var(--speed));
   animation: cloud-drift var(--duration) linear infinite;
   animation-delay: calc(var(--delay) * var(--duration) * -1);
-  transition: opacity var(--motion-weather-transition) var(--ease-weather);
+  transition:
+    opacity var(--motion-weather-transition) var(--ease-weather),
+    visibility 0s linear var(--motion-weather-transition);
   will-change: transform;
+}
+
+.env__cloud-track[style*='visible'] {
+  transition-delay: 0s;
 }
 
 .env__cloud {
