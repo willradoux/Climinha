@@ -1,3 +1,4 @@
+import { searchPlaces } from './openMeteo'
 import type { Place } from './types'
 
 /**
@@ -27,16 +28,52 @@ const TIMEZONE_CITIES: Record<string, Omit<Place, 'id'>> = {
   'America/Noronha': { name: 'Fernando de Noronha', region: 'Pernambuco, Brasil', latitude: -3.8547, longitude: -32.4247 },
 }
 
+function deviceTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? ''
+  } catch {
+    return ''
+  }
+}
+
+// fuso de fora do Brasil → cidade encontrada pela busca (guardada para a próxima visita)
+const TZ_PLACE_KEY = 'climinha:tz-place:v1'
+
+function readTimezonePlace(tz: string): Place | null {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TZ_PLACE_KEY) ?? 'null') as { tz: string; place: Place } | null
+    return saved?.tz === tz ? saved.place : null
+  } catch {
+    return null
+  }
+}
+
 /** Cidade aproximada pelo fuso do aparelho — aparece na hora, sem pedir nada. */
 export function timezonePlace(): Place {
-  let tz = ''
+  const tz = deviceTimezone()
+  const city = TIMEZONE_CITIES[tz]
+  if (city) return { id: `tz-${tz}`, ...city }
+  return readTimezonePlace(tz) ?? { id: 'tz-default', ...TIMEZONE_CITIES['America/Sao_Paulo'] }
+}
+
+/**
+ * Fuso de fora do Brasil (ex.: America/Los_Angeles): procura a cidade que dá nome ao fuso.
+ * Devolve null quando a cidade do fuso já é conhecida ou a busca não encontra nada.
+ */
+export async function resolveTimezonePlace(): Promise<Place | null> {
+  const tz = deviceTimezone()
+  if (!tz || TIMEZONE_CITIES[tz] || readTimezonePlace(tz)) return null
+  const name = tz.split('/').pop()?.replace(/_/g, ' ')
+  if (!name || !tz.includes('/')) return null
+  const [found] = await searchPlaces(name)
+  if (!found) return null
+  const place = { ...found, id: `tz-${tz}` }
   try {
-    tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    localStorage.setItem(TZ_PLACE_KEY, JSON.stringify({ tz, place }))
   } catch {
-    // sem Intl: cai no padrão
+    // sem armazenamento: busca de novo na próxima visita
   }
-  const city = TIMEZONE_CITIES[tz] ?? TIMEZONE_CITIES['America/Sao_Paulo']
-  return { id: `tz-${tz || 'default'}`, ...city }
+  return place
 }
 
 export function getPosition(timeout = 12000): Promise<GeolocationPosition> {

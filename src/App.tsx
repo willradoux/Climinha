@@ -21,7 +21,7 @@ import { motionTokens } from './theme/motion'
 import { applyTheme, getTheme } from './theme/weatherThemes'
 import { conditionLabel } from './weather/format'
 import { liveForecast } from './weather/live'
-import { HERE_ID, locateUser, locationPermission, placeAt, timezonePlace, watchUser } from './weather/location'
+import { HERE_ID, locateUser, locationPermission, placeAt, resolveTimezonePlace, timezonePlace, watchUser } from './weather/location'
 import { precipitationOutlook } from './weather/outlook'
 import { applySimulation, simulationFromUrl, type Simulation } from './weather/simulate'
 import { markSeen, readHere, useForecasts, usePlaces, useUnit, writeHere } from './weather/store'
@@ -41,7 +41,18 @@ export default function App() {
   const { places: saved, addPlace, removePlace } = usePlaces()
   // a cidade do usuário: última localização conhecida; enquanto não há, a cidade do fuso
   const [here, setHere] = useState<Place | null>(readHere)
-  const fallback = useMemo(timezonePlace, [])
+  const [fallback, setFallback] = useState(timezonePlace)
+  useEffect(() => {
+    let alive = true
+    resolveTimezonePlace()
+      .then((p) => alive && p && setFallback(p))
+      .catch(() => {
+        // sem rede: fica a cidade padrão até a localização chegar
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
   const places = useMemo(
     () => (here ? [here, ...saved] : saved.length ? saved : [fallback]),
     [here, saved, fallback],
