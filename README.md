@@ -64,6 +64,7 @@ Comportamentos:
 - [React 19](https://react.dev) + [TypeScript](https://www.typescriptlang.org) + [Vite](https://vite.dev)
 - [Motion](https://motion.dev) para animações, molas e movimento ligado ao scroll
 - [Open-Meteo](https://open-meteo.com) para previsão e busca de cidades (sem chave de API)
+- Chuva desenhada em canvas dentro de um Web Worker (`OffscreenCanvas`), fora da thread principal
 
 ## Rodando localmente
 
@@ -78,6 +79,7 @@ Outros comandos:
 npm run build     # build de produção em dist/
 npm run preview   # serve o build localmente
 npm run lint      # oxlint
+npm run typecheck # verificação de tipos
 ```
 
 ## Deploy
@@ -92,10 +94,18 @@ src/
 ├── environment/    céu em camadas: nuvens, sol, lua, estrelas, névoa, chuva, relâmpago
 ├── components/     hero, cards, intro, barra de navegação, lista de cidades
 ├── theme/          tokens de design, temas por clima, tokens de movimento
-├── weather/        cliente Open-Meteo, cache, formatação
+├── weather/        cliente Open-Meteo, localização, cache, relógio da cidade, formatação
 └── icons/          ícones de clima e de interface próprios
 ```
 
 ## Créditos
 
-Dados meteorológicos por [Open-Meteo](https://open-meteo.com) (CC BY 4.0).
+- Dados meteorológicos e busca de cidades: [Open-Meteo](https://open-meteo.com) (CC BY 4.0)
+- Nome da cidade a partir da localização: [BigDataCloud](https://www.bigdatacloud.com) e [Nominatim](https://nominatim.org) · © colaboradores do [OpenStreetMap](https://www.openstreetmap.org/copyright) (ODbL)
+- Fonte [Fredoka](https://fonts.google.com/specimen/Fredoka) (SIL Open Font License)
+
+## Licença
+
+Código sob a licença [MIT](LICENSE).
+
+O nome **Climinha** e o personagem são a identidade deste projeto e não fazem parte da licença: se for reaproveitar o código, use outro nome e outro personagem.

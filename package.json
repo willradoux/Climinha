@@ -3,6 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "description": "App de clima com personalidade: o céu é o ambiente e o Climinha sente o clima com você.",
+  "license": "MIT",
+  "author": "Will (https://github.com/willradoux)",
+  "homepage": "https://climinha-omega.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/willradoux/Climinha.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
